@@ -186,6 +186,338 @@ async function refundEscrow(
   return true;
 }
 
+export async function createSoloGame(input: {
+  guildId: string;
+  requestId: string;
+  gameType: string;
+  userId: string;
+  channelId?: string | null;
+  messageId?: string | null;
+  stake: bigint;
+  state?: Record<string, unknown>;
+  ttlSeconds: number;
+}) {
+  if (input.stake <= 0n) {
+    throw new EconomyError(
+      "INVALID_STAKE",
+      "Ставка должна быть больше нуля."
+    );
+  }
+
+  const existing = await prisma.economyGameSession.findUnique({
+    where: { requestId: input.requestId }
+  });
+
+  if (existing) return existing;
+
+  return prisma.$transaction(async (tx) => {
+    const session = await tx.economyGameSession.create({
+      data: {
+        guildId: input.guildId,
+        requestId: input.requestId,
+        gameType: input.gameType,
+        hostId: input.userId,
+        ...(input.channelId ? { channelId: input.channelId } : {}),
+        ...(input.messageId ? { messageId: input.messageId } : {}),
+        status: "ACTIVE",
+        stake: input.stake,
+        pot: input.stake,
+        state: JSON.parse(JSON.stringify(input.state ?? {})),
+        expiresAt: new Date(
+          Date.now() + Math.max(30, input.ttlSeconds) * 1000
+        )
+      }
+    });
+
+    await holdStake(tx, {
+      guildId: input.guildId,
+      userId: input.userId,
+      amount: input.stake,
+      kind: "GAME",
+      referenceId: session.id,
+      metadata: { side: "HOUSE", gameType: input.gameType }
+    });
+
+    return session;
+  });
+}
+
+export async function settleHouseGame(input: {
+  guildId: string;
+  sessionId: string;
+  outcome: "WIN" | "LOSE" | "PUSH";
+  payoutMultiplierBps: number;
+  allowMintShortfall: boolean;
+  finalState?: Record<string, unknown>;
+}) {
+  if (input.payoutMultiplierBps < 0) {
+    throw new EconomyError(
+      "INVALID_PAYOUT",
+      "Множитель выплаты не может быть отрицательным."
+    );
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const session = await tx.economyGameSession.findFirst({
+      where: {
+        id: input.sessionId,
+        guildId: input.guildId,
+        status: "ACTIVE"
+      }
+    });
+
+    if (!session) {
+      const existing = await tx.economyGameSession.findFirst({
+        where: {
+          id: input.sessionId,
+          guildId: input.guildId
+        }
+      });
+
+      if (existing?.status === "FINISHED") {
+        return existing;
+      }
+
+      throw new EconomyError(
+        "GAME_NOT_SETTLEABLE",
+        "Игру нельзя завершить."
+      );
+    }
+
+    const claimed = await tx.economyGameSession.updateMany({
+      where: {
+        id: session.id,
+        status: "ACTIVE",
+        version: session.version
+      },
+      data: {
+        status: "SETTLING",
+        version: { increment: 1 }
+      }
+    });
+
+    if (claimed.count !== 1) {
+      throw new EconomyError(
+        "GAME_CHANGED",
+        "Игра уже завершается."
+      );
+    }
+
+    const escrow = await tx.economyEscrow.findFirst({
+      where: {
+        guildId: input.guildId,
+        kind: "GAME",
+        referenceId: session.id,
+        userId: session.hostId,
+        status: "HELD"
+      },
+      orderBy: { createdAt: "desc" }
+    });
+
+    if (!escrow) {
+      throw new EconomyError(
+        "ESCROW_MISSING",
+        "Не найдено удержание ставки."
+      );
+    }
+
+    await ensureAccount(tx, input.guildId, session.hostId);
+    const treasury = await ensureTreasury(tx, input.guildId);
+
+    let payout = 0n;
+    let mintedShortfall = 0n;
+
+    if (input.outcome === "PUSH") {
+      payout = escrow.amount;
+    } else if (input.outcome === "WIN") {
+      payout =
+        (escrow.amount * BigInt(input.payoutMultiplierBps)) /
+        10000n;
+      const profit =
+        payout > escrow.amount
+          ? payout - escrow.amount
+          : 0n;
+
+      if (profit > treasury.balance) {
+        mintedShortfall = profit - treasury.balance;
+
+        if (!input.allowMintShortfall) {
+          throw new EconomyError(
+            "HOUSE_RESERVE_LOW",
+            "В серверной казне не хватает NEC для этой выплаты."
+          );
+        }
+      }
+
+      const fromTreasury =
+        profit < treasury.balance ? profit : treasury.balance;
+
+      await tx.economyTreasury.update({
+        where: { guildId: input.guildId },
+        data: {
+          ...(fromTreasury > 0n
+            ? { balance: { decrement: fromTreasury } }
+            : {}),
+          ...(mintedShortfall > 0n
+            ? { minted: { increment: mintedShortfall } }
+            : {})
+        }
+      });
+    } else {
+      await tx.economyTreasury.update({
+        where: { guildId: input.guildId },
+        data: {
+          balance: { increment: escrow.amount }
+        }
+      });
+
+      await tx.economyAccount.update({
+        where: {
+          guildId_userId: {
+            guildId: input.guildId,
+            userId: session.hostId
+          }
+        },
+        data: {
+          lifetimeSpent: { increment: escrow.amount }
+        }
+      });
+    }
+
+    if (payout > 0n) {
+      await tx.economyAccount.update({
+        where: {
+          guildId_userId: {
+            guildId: input.guildId,
+            userId: session.hostId
+          }
+        },
+        data: {
+          wallet: { increment: payout },
+          ...(input.outcome === "WIN"
+            ? { lifetimeEarned: { increment: payout } }
+            : {})
+        }
+      });
+    }
+
+    const released = await tx.economyEscrow.updateMany({
+      where: {
+        id: escrow.id,
+        status: "HELD"
+      },
+      data: {
+        status:
+          input.outcome === "PUSH"
+            ? "REFUNDED"
+            : "RELEASED",
+        releasedAt: new Date()
+      }
+    });
+
+    if (released.count !== 1) {
+      throw new EconomyError(
+        "ESCROW_CHANGED",
+        "Ставка уже была обработана."
+      );
+    }
+
+    if (input.outcome === "PUSH") {
+      await ledger(tx, {
+        guildId: input.guildId,
+        userId: session.hostId,
+        amount: payout,
+        walletDelta: payout,
+        type: "HOUSE_PUSH_REFUND",
+        referenceId: session.id
+      });
+    } else if (input.outcome === "WIN") {
+      await ledger(tx, {
+        guildId: input.guildId,
+        userId: session.hostId,
+        amount: payout,
+        walletDelta: payout,
+        type: "HOUSE_GAME_WIN",
+        referenceId: session.id,
+        metadata: {
+          gameType: session.gameType,
+          mintedShortfall: mintedShortfall.toString()
+        }
+      });
+    } else {
+      await ledger(tx, {
+        guildId: input.guildId,
+        userId: session.hostId,
+        amount: 0n,
+        type: "HOUSE_GAME_LOSS",
+        referenceId: session.id,
+        metadata: {
+          gameType: session.gameType,
+          lost: escrow.amount.toString()
+        }
+      });
+    }
+
+    return tx.economyGameSession.update({
+      where: { id: session.id },
+      data: {
+        status: "FINISHED",
+        winnerId:
+          input.outcome === "WIN" ? session.hostId : null,
+        settledAt: new Date(),
+        ...(input.finalState
+          ? {
+              state: JSON.parse(
+                JSON.stringify(input.finalState)
+              )
+            }
+          : {})
+      }
+    });
+  });
+}
+
+export async function playInstantHouseGame(input: {
+  guildId: string;
+  requestId: string;
+  gameType: string;
+  userId: string;
+  stake: bigint;
+  win: boolean;
+  payoutMultiplierBps: number;
+  allowMintShortfall: boolean;
+  state: Record<string, unknown>;
+}) {
+  const existing = await prisma.economyGameSession.findUnique({
+    where: { requestId: input.requestId }
+  });
+
+  if (existing?.status === "FINISHED") {
+    return existing;
+  }
+
+  const session =
+    existing ??
+    (await createSoloGame({
+      guildId: input.guildId,
+      requestId: input.requestId,
+      gameType: input.gameType,
+      userId: input.userId,
+      stake: input.stake,
+      state: input.state,
+      ttlSeconds: 60
+    }));
+
+  return settleHouseGame({
+    guildId: input.guildId,
+    sessionId: session.id,
+    outcome: input.win ? "WIN" : "LOSE",
+    payoutMultiplierBps: input.payoutMultiplierBps,
+    allowMintShortfall: input.allowMintShortfall,
+    finalState: input.state
+  });
+}
+
 export async function createPvpGame(input: {
   guildId: string;
   requestId: string;
