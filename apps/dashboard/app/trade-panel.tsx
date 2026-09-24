@@ -354,7 +354,7 @@ export default function TradePanel({
 
   return (
     <div className="tradeCenter">
-      <div className="economyTabs">
+      <div className="centerTabs">
         <button
           className={tab === "overview" ? "ghostButton activeTab" : "ghostButton"}
           onClick={() => setTab("overview")}
