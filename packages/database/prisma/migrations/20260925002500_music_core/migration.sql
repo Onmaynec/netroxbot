@@ -66,6 +66,7 @@ CREATE TABLE "MusicPlayerState" (
   "textChannelId" TEXT,
   "controllerMessageId" TEXT,
   "volume" INTEGER NOT NULL DEFAULT 50,
+  "positionMs" BIGINT NOT NULL DEFAULT 0,
   "loopMode" TEXT NOT NULL DEFAULT 'none',
   "autoplay" BOOLEAN NOT NULL DEFAULT false,
   "stayConnected" BOOLEAN NOT NULL DEFAULT false,
