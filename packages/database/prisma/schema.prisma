@@ -293,11 +293,14 @@ model EconomyItemInstance {
   acquiredFrom String
   acquiredAt   DateTime              @default(now())
   lockedUntil  DateTime?
+  lockKind     String?
+  lockId       String?
   item         EconomyItemDefinition @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   @@unique([itemId, serialNumber])
   @@index([guildId, ownerId, acquiredAt])
   @@index([guildId, ownerId, itemId])
+  @@index([guildId, lockKind, lockId])
 }
 
 model EconomyLoan {
@@ -341,6 +344,138 @@ model EconomyRoleSalaryClaim {
 
   @@unique([salaryId, userId])
   @@index([userId, lastClaimedAt])
+}
+
+model EconomyMarketplaceListing {
+  id             String   @id @default(cuid())
+  guildId        String
+  sellerId       String
+  itemInstanceId String
+  price          BigInt
+  feeBps         Int      @default(0)
+  status         String   @default("ACTIVE")
+  buyerId        String?
+  version        Int      @default(1)
+  createdAt      DateTime @default(now())
+  expiresAt      DateTime?
+  completedAt    DateTime?
+
+  @@index([guildId, status, createdAt])
+  @@index([guildId, sellerId, status])
+  @@index([itemInstanceId, status])
+}
+
+model EconomyAuction {
+  id               String   @id @default(cuid())
+  guildId          String
+  source           String   @default("USER")
+  sellerId         String?
+  itemInstanceId   String?
+  itemDefinitionId String?
+  createdBy        String
+  startPrice       BigInt
+  minIncrement     BigInt
+  buyoutPrice      BigInt?
+  currentBid       BigInt?
+  currentBidderId  String?
+  feeBps           Int      @default(0)
+  status           String   @default("SCHEDULED")
+  version          Int      @default(1)
+  startsAt         DateTime
+  endsAt           DateTime
+  settledAt        DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  bids             EconomyAuctionBid[]
+
+  @@index([guildId, status, startsAt])
+  @@index([guildId, status, endsAt])
+  @@index([guildId, sellerId, createdAt])
+  @@index([itemInstanceId, status])
+}
+
+model EconomyAuctionBid {
+  id        String         @id @default(cuid())
+  auctionId String
+  bidderId  String
+  amount    BigInt
+  createdAt DateTime       @default(now())
+  auction   EconomyAuction @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+
+  @@index([auctionId, createdAt])
+  @@index([auctionId, amount])
+  @@index([bidderId, createdAt])
+}
+
+model EconomyEscrow {
+  id          String   @id @default(cuid())
+  guildId     String
+  kind        String
+  referenceId String
+  userId      String
+  amount      BigInt
+  status      String   @default("HELD")
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  releasedAt  DateTime?
+
+  @@index([guildId, kind, referenceId, status])
+  @@index([guildId, userId, status])
+}
+
+model EconomyGameSession {
+  id            String   @id @default(cuid())
+  guildId       String
+  gameType      String
+  hostId        String
+  opponentId    String?
+  status        String   @default("WAITING")
+  stake         BigInt   @default(0)
+  pot           BigInt   @default(0)
+  winnerId      String?
+  state         Json     @default("{}")
+  version       Int      @default(1)
+  expiresAt     DateTime?
+  settledAt     DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([guildId, gameType, status, createdAt])
+  @@index([guildId, hostId, status])
+  @@index([guildId, opponentId, status])
+}
+
+model EconomyLotteryRound {
+  id           String                 @id @default(cuid())
+  guildId      String
+  title        String
+  status       String                 @default("SCHEDULED")
+  ticketPrice  BigInt
+  maxTickets   Int?
+  pot          BigInt                 @default(0)
+  winnerId     String?
+  startsAt     DateTime
+  endsAt       DateTime
+  settledAt    DateTime?
+  createdBy    String
+  createdAt    DateTime               @default(now())
+  tickets      EconomyLotteryTicket[]
+
+  @@index([guildId, status, startsAt])
+  @@index([guildId, status, endsAt])
+}
+
+model EconomyLotteryTicket {
+  id        String              @id @default(cuid())
+  roundId   String
+  userId    String
+  quantity  Int
+  amount    BigInt
+  createdAt DateTime            @default(now())
+  round     EconomyLotteryRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  @@index([roundId, userId])
+  @@index([userId, createdAt])
 }
 
 model MusicPlaylist {
