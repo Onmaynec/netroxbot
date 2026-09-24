@@ -71,12 +71,16 @@ CREATE TABLE "EconomyEscrow" (
 CREATE TABLE "EconomyGameSession" (
   "id" TEXT NOT NULL,
   "guildId" TEXT NOT NULL,
+  "requestId" TEXT,
   "gameType" TEXT NOT NULL,
   "hostId" TEXT NOT NULL,
   "opponentId" TEXT,
+  "channelId" TEXT,
+  "messageId" TEXT,
   "status" TEXT NOT NULL DEFAULT 'WAITING',
   "stake" BIGINT NOT NULL DEFAULT 0,
   "pot" BIGINT NOT NULL DEFAULT 0,
+  "feeBps" INTEGER NOT NULL DEFAULT 0,
   "winnerId" TEXT,
   "state" JSONB NOT NULL DEFAULT '{}',
   "version" INTEGER NOT NULL DEFAULT 1,
@@ -94,6 +98,8 @@ CREATE TABLE "EconomyLotteryRound" (
   "status" TEXT NOT NULL DEFAULT 'SCHEDULED',
   "ticketPrice" BIGINT NOT NULL,
   "maxTickets" INTEGER,
+  "maxTicketsPerUser" INTEGER,
+  "feeBps" INTEGER NOT NULL DEFAULT 0,
   "pot" BIGINT NOT NULL DEFAULT 0,
   "winnerId" TEXT,
   "startsAt" TIMESTAMP(3) NOT NULL,
@@ -141,6 +147,9 @@ CREATE INDEX "EconomyEscrow_guildId_kind_referenceId_status_idx"
   ON "EconomyEscrow"("guildId", "kind", "referenceId", "status");
 CREATE INDEX "EconomyEscrow_guildId_userId_status_idx"
   ON "EconomyEscrow"("guildId", "userId", "status");
+
+CREATE UNIQUE INDEX "EconomyGameSession_requestId_key"
+  ON "EconomyGameSession"("requestId");
 
 CREATE INDEX "EconomyGameSession_guildId_gameType_status_createdAt_idx"
   ON "EconomyGameSession"("guildId", "gameType", "status", "createdAt");
