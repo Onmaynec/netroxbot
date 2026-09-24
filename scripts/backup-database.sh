@@ -20,59 +20,67 @@ export PGDATABASE="$POSTGRES_DB"
 
 mkdir -p "$BACKUP_DIR"
 
-record_start() {
+record_success() {
   psql -v ON_ERROR_STOP=1 \
     -v backup_id="$1" \
     -v file_name="$2" \
+    -v checksum="$3" \
+    -v size_bytes="$4" \
     <<'SQL'
 INSERT INTO "BackupRecord" (
   "id",
   "fileName",
   "status",
-  "startedAt"
+  "sizeBytes",
+  "checksum",
+  "startedAt",
+  "completedAt"
 )
 VALUES (
   :'backup_id',
   :'file_name',
-  'RUNNING',
+  'VALID',
+  :'size_bytes'::bigint,
+  :'checksum',
+  CURRENT_TIMESTAMP,
   CURRENT_TIMESTAMP
 )
 ON CONFLICT ("fileName")
 DO UPDATE SET
-  "status" = 'RUNNING',
-  "error" = NULL,
-  "startedAt" = CURRENT_TIMESTAMP,
-  "completedAt" = NULL;
-SQL
-}
-
-record_success() {
-  psql -v ON_ERROR_STOP=1 \
-    -v file_name="$1" \
-    -v checksum="$2" \
-    -v size_bytes="$3" \
-    <<'SQL'
-UPDATE "BackupRecord"
-SET
   "status" = 'VALID',
-  "checksum" = :'checksum',
-  "sizeBytes" = :'size_bytes'::bigint,
+  "sizeBytes" = EXCLUDED."sizeBytes",
+  "checksum" = EXCLUDED."checksum",
   "completedAt" = CURRENT_TIMESTAMP,
-  "error" = NULL
-WHERE "fileName" = :'file_name';
+  "error" = NULL;
 SQL
 }
 
 record_failure() {
   psql -v ON_ERROR_STOP=1 \
-    -v file_name="$1" \
+    -v backup_id="$1" \
+    -v file_name="$2" \
     <<'SQL' || true
-UPDATE "BackupRecord"
-SET
+INSERT INTO "BackupRecord" (
+  "id",
+  "fileName",
+  "status",
+  "error",
+  "startedAt",
+  "completedAt"
+)
+VALUES (
+  :'backup_id',
+  :'file_name',
+  'FAILED',
+  'pg_dump_or_validation_failed',
+  CURRENT_TIMESTAMP,
+  CURRENT_TIMESTAMP
+)
+ON CONFLICT ("fileName")
+DO UPDATE SET
   "status" = 'FAILED',
   "completedAt" = CURRENT_TIMESTAMP,
-  "error" = 'pg_dump_or_validation_failed'
-WHERE "fileName" = :'file_name';
+  "error" = 'pg_dump_or_validation_failed';
 SQL
 }
 
@@ -97,8 +105,6 @@ run_backup() {
   checksum_file="$final_file.sha256"
 
   echo "[NetroxBot Backup] Создаю $file_name..."
-  record_start "$backup_id" "$file_name"
-
   if ! pg_dump \
     --format=custom \
     --compress=9 \
@@ -107,7 +113,7 @@ run_backup() {
     --file="$temp_file"
   then
     rm -f "$temp_file"
-    record_failure "$file_name"
+    record_failure "$backup_id" "$file_name"
     rm -rf "$BACKUP_DIR/.backup-lock"
     trap - EXIT INT TERM
     return 1
@@ -128,7 +134,7 @@ run_backup() {
   size_bytes="$(stat -c '%s' "$final_file")"
   printf '%s  %s\n' "$checksum" "$file_name" > "$checksum_file"
 
-  record_success "$file_name" "$checksum" "$size_bytes"
+  record_success "$backup_id" "$file_name" "$checksum" "$size_bytes"
 
   find "$BACKUP_DIR" \
     -type f \
