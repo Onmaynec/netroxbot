@@ -15,7 +15,9 @@
     "dev:api": "pnpm --filter @netrox/api dev",
     "dev:dashboard": "pnpm --filter @netrox/dashboard dev",
     "db:generate": "pnpm --filter @netrox/database generate",
-    "db:migrate": "pnpm --filter @netrox/database migrate"
+    "db:migrate": "pnpm --filter @netrox/database migrate",
+    "db:deploy": "pnpm --filter @netrox/database migrate:deploy",
+    "db:bootstrap": "pnpm --filter @netrox/database bootstrap"
   },
   "devDependencies": {
     "turbo": "^2.10.12",
