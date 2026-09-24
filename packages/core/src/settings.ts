@@ -967,6 +967,40 @@ export const MODULE_SETTING_FIELDS: Partial<
       defaultValue: true
     },
     {
+      key: "casinoMintFallback",
+      label: "Резервный выпуск казино",
+      description: "Если казне не хватает NEC для выигрыша, разрешить выпустить только недостающую сумму и записать её в minted.",
+      kind: "boolean",
+      defaultValue: true
+    },
+    {
+      key: "blackjackWinPercent",
+      label: "Выплата blackjack",
+      description: "Общая выплата победителю в процентах от ставки, включая возврат ставки.",
+      kind: "number",
+      defaultValue: 200,
+      min: 100,
+      max: 1000
+    },
+    {
+      key: "blackjackNaturalPercent",
+      label: "Выплата natural blackjack",
+      description: "Общая выплата за blackjack с первых двух карт.",
+      kind: "number",
+      defaultValue: 250,
+      min: 100,
+      max: 1000
+    },
+    {
+      key: "guessMultiplier",
+      label: "Множитель «Угадай число»",
+      description: "Во сколько раз возвращается ставка при верном числе.",
+      kind: "number",
+      defaultValue: 18,
+      min: 1,
+      max: 100
+    },
+    {
       key: "blackjackEnabled",
       label: "Blackjack",
       description: "Разрешить игру в blackjack.",
