@@ -1,7 +1,8 @@
 import type { Client, Message } from "discord.js";
 import {
   EconomyError,
-  claimActivityReward
+  claimActivityReward,
+  markOverdueEconomyLoans
 } from "@netrox/database";
 import {
   getEconomySettings,
@@ -92,6 +93,8 @@ export function startEconomyVoiceRewards(
     running = true;
 
     try {
+      await markOverdueEconomyLoans(runtime.guildId);
+
       const guild =
         client.guilds.cache.get(runtime.guildId) ??
         (await client.guilds.fetch(runtime.guildId).catch(() => null));

@@ -1163,3 +1163,347 @@ export async function activateEconomySeason(
     });
   });
 }
+
+
+export function listRoleSalaries(guildId: string) {
+  return prisma.economyRoleSalary.findMany({
+    where: { guildId },
+    orderBy: [
+      { enabled: "desc" },
+      { amount: "desc" }
+    ]
+  });
+}
+
+export async function upsertRoleSalary(input: {
+  guildId: string;
+  roleId: string;
+  amount: bigint;
+  intervalMinutes: number;
+  createdBy: string;
+}) {
+  positiveAmount(input.amount);
+
+  if (!Number.isInteger(input.intervalMinutes) || input.intervalMinutes < 1) {
+    throw new EconomyError(
+      "INVALID_SALARY_INTERVAL",
+      "Интервал зарплаты должен быть не меньше одной минуты."
+    );
+  }
+
+  return prisma.economyRoleSalary.upsert({
+    where: {
+      guildId_roleId: {
+        guildId: input.guildId,
+        roleId: input.roleId
+      }
+    },
+    update: {
+      amount: input.amount,
+      intervalMinutes: input.intervalMinutes,
+      enabled: true,
+      createdBy: input.createdBy
+    },
+    create: {
+      guildId: input.guildId,
+      roleId: input.roleId,
+      amount: input.amount,
+      intervalMinutes: input.intervalMinutes,
+      createdBy: input.createdBy
+    }
+  });
+}
+
+export async function disableRoleSalary(
+  guildId: string,
+  roleId: string
+) {
+  const salary = await prisma.economyRoleSalary.findUnique({
+    where: {
+      guildId_roleId: {
+        guildId,
+        roleId
+      }
+    }
+  });
+
+  if (!salary) {
+    throw new EconomyError(
+      "SALARY_NOT_FOUND",
+      "Для этой роли зарплата не настроена."
+    );
+  }
+
+  return prisma.economyRoleSalary.update({
+    where: { id: salary.id },
+    data: { enabled: false }
+  });
+}
+
+export async function claimRoleSalaries(input: {
+  guildId: string;
+  userId: string;
+  roleIds: string[];
+}) {
+  if (input.roleIds.length === 0) {
+    throw new EconomyError(
+      "NO_SALARY_ROLES",
+      "У тебя нет ролей с настроенной зарплатой."
+    );
+  }
+
+  const now = new Date();
+
+  return prisma.$transaction(async (tx) => {
+    const salaries = await tx.economyRoleSalary.findMany({
+      where: {
+        guildId: input.guildId,
+        enabled: true,
+        roleId: { in: input.roleIds }
+      },
+      orderBy: { amount: "desc" }
+    });
+
+    if (salaries.length === 0) {
+      throw new EconomyError(
+        "NO_SALARY_ROLES",
+        "У тебя нет ролей с настроенной зарплатой."
+      );
+    }
+
+    const claimed: Array<{
+      salaryId: string;
+      roleId: string;
+      amount: bigint;
+    }> = [];
+
+    for (const salary of salaries) {
+      const previous = await tx.economyRoleSalaryClaim.findUnique({
+        where: {
+          salaryId_userId: {
+            salaryId: salary.id,
+            userId: input.userId
+          }
+        }
+      });
+
+      const eligibleBefore = new Date(
+        now.getTime() - salary.intervalMinutes * 60 * 1000
+      );
+
+      if (
+        previous &&
+        previous.lastClaimedAt.getTime() > eligibleBefore.getTime()
+      ) {
+        continue;
+      }
+
+      if (previous) {
+        const updated = await tx.economyRoleSalaryClaim.updateMany({
+          where: {
+            id: previous.id,
+            lastClaimedAt: { lte: eligibleBefore }
+          },
+          data: {
+            lastClaimedAt: now
+          }
+        });
+
+        if (updated.count !== 1) {
+          continue;
+        }
+      } else {
+        await tx.economyRoleSalaryClaim.create({
+          data: {
+            salaryId: salary.id,
+            userId: input.userId,
+            lastClaimedAt: now
+          }
+        });
+      }
+
+      claimed.push({
+        salaryId: salary.id,
+        roleId: salary.roleId,
+        amount: salary.amount
+      });
+    }
+
+    if (claimed.length === 0) {
+      throw new EconomyError(
+        "SALARY_COOLDOWN",
+        "Зарплата по твоим ролям пока недоступна."
+      );
+    }
+
+    const total = claimed.reduce(
+      (sum, item) => sum + item.amount,
+      0n
+    );
+
+    await ensureAccountTx(tx, input.guildId, input.userId);
+    await ensureTreasuryTx(tx, input.guildId);
+
+    const account = await tx.economyAccount.update({
+      where: {
+        guildId_userId: {
+          guildId: input.guildId,
+          userId: input.userId
+        }
+      },
+      data: {
+        wallet: { increment: total },
+        lifetimeEarned: { increment: total }
+      }
+    });
+
+    await tx.economyTreasury.update({
+      where: { guildId: input.guildId },
+      data: {
+        minted: { increment: total }
+      }
+    });
+
+    await ledgerTx(tx, {
+      guildId: input.guildId,
+      userId: input.userId,
+      amount: total,
+      walletDelta: total,
+      type: "ROLE_SALARY",
+      metadata: {
+        salaries: claimed.map((item) => ({
+          salaryId: item.salaryId,
+          roleId: item.roleId,
+          amount: item.amount.toString()
+        }))
+      }
+    });
+
+    return {
+      total,
+      claimed,
+      account
+    };
+  });
+}
+
+export async function markOverdueEconomyLoans(guildId: string) {
+  const now = new Date();
+
+  return prisma.economyLoan.updateMany({
+    where: {
+      guildId,
+      status: "ACTIVE",
+      dueAt: { lt: now },
+      balance: { gt: 0n }
+    },
+    data: {
+      status: "OVERDUE"
+    }
+  });
+}
+
+export async function applyWealthTax(input: {
+  guildId: string;
+  rateBps: number;
+  minimumTotal: bigint;
+  actorId: string;
+}) {
+  if (
+    !Number.isInteger(input.rateBps) ||
+    input.rateBps < 0 ||
+    input.rateBps > 10000
+  ) {
+    throw new EconomyError(
+      "INVALID_TAX_RATE",
+      "Налог должен быть от 0 до 100 процентов."
+    );
+  }
+
+  if (input.rateBps === 0) {
+    return {
+      affectedAccounts: 0,
+      collected: 0n
+    };
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const accounts = await tx.economyAccount.findMany({
+      where: {
+        guildId: input.guildId
+      }
+    });
+
+    await ensureTreasuryTx(tx, input.guildId);
+
+    let affectedAccounts = 0;
+    let collected = 0n;
+    const referenceId =
+      "wealth_tax_" + Date.now().toString(36);
+
+    for (const account of accounts) {
+      const total = account.wallet + account.bank;
+
+      if (total < input.minimumTotal || total <= 0n) {
+        continue;
+      }
+
+      const requestedTax = basisPoints(total, input.rateBps);
+      const tax = requestedTax > total ? total : requestedTax;
+
+      if (tax <= 0n) {
+        continue;
+      }
+
+      const walletTax =
+        account.wallet >= tax ? tax : account.wallet;
+      const bankTax = tax - walletTax;
+
+      await tx.economyAccount.update({
+        where: { id: account.id },
+        data: {
+          ...(walletTax > 0n
+            ? { wallet: { decrement: walletTax } }
+            : {}),
+          ...(bankTax > 0n
+            ? { bank: { decrement: bankTax } }
+            : {}),
+          lifetimeSpent: { increment: tax }
+        }
+      });
+
+      await ledgerTx(tx, {
+        guildId: input.guildId,
+        userId: account.userId,
+        amount: -tax,
+        walletDelta: -walletTax,
+        bankDelta: -bankTax,
+        type: "WEALTH_TAX",
+        referenceId,
+        metadata: {
+          actorId: input.actorId,
+          rateBps: input.rateBps,
+          minimumTotal: input.minimumTotal.toString(),
+          totalBefore: total.toString()
+        }
+      });
+
+      affectedAccounts += 1;
+      collected += tax;
+    }
+
+    if (collected > 0n) {
+      await tx.economyTreasury.update({
+        where: { guildId: input.guildId },
+        data: {
+          balance: { increment: collected }
+        }
+      });
+    }
+
+    return {
+      affectedAccounts,
+      collected
+    };
+  });
+}

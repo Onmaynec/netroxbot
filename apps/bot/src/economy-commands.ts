@@ -124,6 +124,9 @@ export const economyCommandBuilders = [
         )
     ),
   new SlashCommandBuilder()
+    .setName("salary")
+    .setDescription("Получить доступную зарплату за роли"),
+  new SlashCommandBuilder()
     .setName("economyadmin")
     .setDescription("Администрирование экономики NetCoin")
     .addSubcommand((subcommand) =>
@@ -256,6 +259,54 @@ export const economyCommandBuilders = [
             .setName("лимит")
             .setDescription("Максимум экземпляров на одного пользователя")
             .setMinValue(1)
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("salary-set")
+        .setDescription("Настроить зарплату для роли")
+        .addRoleOption((option) =>
+          option
+            .setName("роль")
+            .setDescription("Роль, получающая зарплату")
+            .setRequired(true)
+        )
+        .addIntegerOption((option) =>
+          option
+            .setName("сумма")
+            .setDescription("Выплата в NEC")
+            .setRequired(true)
+            .setMinValue(1)
+        )
+        .addIntegerOption((option) =>
+          option
+            .setName("интервал")
+            .setDescription("Интервал выплаты в часах")
+            .setRequired(true)
+            .setMinValue(1)
+            .setMaxValue(720)
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("salary-disable")
+        .setDescription("Отключить зарплату для роли")
+        .addRoleOption((option) =>
+          option
+            .setName("роль")
+            .setDescription("Роль, у которой отключить зарплату")
+            .setRequired(true)
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("tax-run")
+        .setDescription("Применить налог на состояние")
+        .addBooleanOption((option) =>
+          option
+            .setName("подтверждение")
+            .setDescription("Подтверждаю списание налога с подходящих балансов")
+            .setRequired(true)
         )
     )
 ];

@@ -64,13 +64,19 @@ export {
   getActiveLoan,
   getEconomyAccount,
   giftItem,
+  claimRoleSalaries,
+  disableRoleSalary,
   grantWallet,
   listEconomyTransactions,
   listInventory,
+  listRoleSalaries,
   listShopItems,
+  markOverdueEconomyLoans,
   moveBetweenWalletAndBank,
   removeWallet,
   repayLoan,
   takeLoan,
-  transferWallet
+  transferWallet,
+  upsertRoleSalary,
+  applyWealthTax
 } from "./economy.js";

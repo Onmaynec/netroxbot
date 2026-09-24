@@ -599,6 +599,24 @@ export const MODULE_SETTING_FIELDS: Partial<
       max: 365
     },
     {
+      key: "wealthTaxPercent",
+      label: "Налог на состояние",
+      description: "Процент налога, который администратор может применить к крупным балансам.",
+      kind: "number",
+      defaultValue: 1,
+      min: 0,
+      max: 100
+    },
+    {
+      key: "wealthTaxMinimumBalance",
+      label: "Порог налога",
+      description: "Минимальный общий баланс кошелька и банка для налога.",
+      kind: "number",
+      defaultValue: 10000,
+      min: 0,
+      max: 1000000000
+    },
+    {
       key: "roleSalaryEnabled",
       label: "Зарплаты за роли",
       description: "Разрешить периодические выплаты по настроенным ролям.",

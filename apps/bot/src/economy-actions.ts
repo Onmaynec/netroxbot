@@ -11,10 +11,13 @@ import {
 } from "discord.js";
 import {
   EconomyError,
+  applyWealthTax,
   buyShopItem,
   claimDailyReward,
+  claimRoleSalaries,
   claimWorkReward,
   createEconomyItem,
+  disableRoleSalary,
   getActiveLoan,
   getEconomyAccount,
   giftItem,
@@ -26,6 +29,7 @@ import {
   repayLoan,
   takeLoan,
   transferWallet,
+  upsertRoleSalary,
   prisma
 } from "@netrox/database";
 import { economyCommandNames } from "./economy-commands.js";
@@ -642,6 +646,46 @@ async function handleCommand(
       return true;
     }
 
+    if (interaction.commandName === "salary") {
+      if (
+        !booleanSetting(config.settings, "roleSalaryEnabled", true)
+      ) {
+        throw new EconomyError(
+          "SALARY_DISABLED",
+          "Зарплаты за роли отключены в настройках."
+        );
+      }
+
+      if (!interaction.guild) {
+        throw new EconomyError(
+          "GUILD_REQUIRED",
+          "Команда доступна только на сервере."
+        );
+      }
+
+      const member = await interaction.guild.members.fetch(
+        interaction.user.id
+      );
+      const result = await claimRoleSalaries({
+        guildId: runtime.guildId,
+        userId: interaction.user.id,
+        roleIds: [...member.roles.cache.keys()]
+      });
+
+      await interaction.reply({
+        content:
+          "Начислена зарплата: **" +
+          nec(result.total) +
+          "** за " +
+          result.claimed.length +
+          " роль(и). В кошельке **" +
+          nec(result.account.wallet) +
+          "**.",
+        flags: MessageFlags.Ephemeral
+      });
+      return true;
+    }
+
     if (interaction.commandName === "economyadmin") {
       if (!(await canAdminEconomy(interaction))) {
         await interaction.reply({
@@ -744,6 +788,106 @@ async function handleCommand(
             "** добавлен в магазин. SKU: `" +
             item.sku +
             "`.",
+          flags: MessageFlags.Ephemeral
+        });
+        return true;
+      }
+
+      if (action === "salary-set") {
+        const role = interaction.options.getRole("роль", true);
+        const amount = BigInt(
+          interaction.options.getInteger("сумма", true)
+        );
+        const intervalHours = interaction.options.getInteger(
+          "интервал",
+          true
+        );
+
+        const salary = await upsertRoleSalary({
+          guildId: runtime.guildId,
+          roleId: role.id,
+          amount,
+          intervalMinutes: intervalHours * 60,
+          createdBy: interaction.user.id
+        });
+
+        await interaction.reply({
+          content:
+            "Для <@&" +
+            role.id +
+            "> установлена зарплата **" +
+            nec(salary.amount) +
+            "** каждые " +
+            intervalHours +
+            " ч.",
+          flags: MessageFlags.Ephemeral
+        });
+        return true;
+      }
+
+      if (action === "salary-disable") {
+        const role = interaction.options.getRole("роль", true);
+
+        await disableRoleSalary(runtime.guildId, role.id);
+
+        await interaction.reply({
+          content: "Зарплата для <@&" + role.id + "> отключена.",
+          flags: MessageFlags.Ephemeral
+        });
+        return true;
+      }
+
+      if (action === "tax-run") {
+        const confirmed = interaction.options.getBoolean(
+          "подтверждение",
+          true
+        );
+
+        if (!confirmed) {
+          throw new EconomyError(
+            "CONFIRMATION_REQUIRED",
+            "Для запуска налога нужно явное подтверждение."
+          );
+        }
+
+        const percent = Math.max(
+          0,
+          Math.min(
+            numberSetting(
+              config.settings,
+              "wealthTaxPercent",
+              1
+            ),
+            100
+          )
+        );
+        const minimumTotal = BigInt(
+          Math.max(
+            0,
+            Math.trunc(
+              numberSetting(
+                config.settings,
+                "wealthTaxMinimumBalance",
+                10000
+              )
+            )
+          )
+        );
+
+        const result = await applyWealthTax({
+          guildId: runtime.guildId,
+          rateBps: Math.round(percent * 100),
+          minimumTotal,
+          actorId: interaction.user.id
+        });
+
+        await interaction.reply({
+          content:
+            "Налог применён к **" +
+            result.affectedAccounts +
+            "** аккаунтам. В казну собрано **" +
+            nec(result.collected) +
+            "**.",
           flags: MessageFlags.Ephemeral
         });
         return true;
