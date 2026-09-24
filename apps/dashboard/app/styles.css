@@ -1207,3 +1207,43 @@ p {
     width: 100%;
   }
 }
+
+.tradeCenter {
+  display: grid;
+  gap: 14px;
+}
+
+.tradeAuctionRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 13px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel-soft);
+}
+
+.tradeAuctionRow > div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.tradeAuctionRow strong {
+  font-size: 13px;
+}
+
+.tradeAuctionRow span,
+.tradeAuctionRow small {
+  color: var(--muted);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 500px) {
+  .tradeAuctionRow {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
