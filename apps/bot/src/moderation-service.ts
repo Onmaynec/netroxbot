@@ -9,6 +9,7 @@ import {
   MessageFlags
 } from "discord.js";
 import { formatDurationSeconds } from "@netrox/core";
+import { emitServerLog } from "./logging.js";
 import {
   cancelModerationCaseRecord,
   createModerationCase,
@@ -268,10 +269,65 @@ export function caseEmbed(moderationCase: {
   return embed;
 }
 
+async function recordModerationCaseEvent(
+  runtime: ModerationRuntime,
+  moderationCase: ModerationCaseRecord,
+  eventType =
+    "moderation.case." + moderationCase.status.toLowerCase()
+) {
+  await emitServerLog(runtime.client, runtime.guildId, {
+    category: "moderation",
+    eventType,
+    summary:
+      "Кейс #" +
+      moderationCase.caseNumber +
+      " • " +
+      caseTypeLabel(moderationCase.type) +
+      " • " +
+      statusLabel(moderationCase.status),
+    actorId:
+      moderationCase.cancelledBy ??
+      moderationCase.moderatorId,
+    targetType: moderationCase.targetUserId
+      ? "user"
+      : moderationCase.targetChannelId
+        ? "channel"
+        : "moderation_case",
+    targetId:
+      moderationCase.targetUserId ??
+      moderationCase.targetChannelId ??
+      moderationCase.id,
+    channelId: moderationCase.targetChannelId,
+    payload: {
+      caseId: moderationCase.id,
+      caseNumber: moderationCase.caseNumber,
+      type: moderationCase.type,
+      status: moderationCase.status,
+      reason: moderationCase.reason,
+      durationSeconds: moderationCase.durationSeconds,
+      expiresAt:
+        moderationCase.expiresAt?.toISOString() ?? null,
+      dmDelivered: moderationCase.dmDelivered,
+      moderatorId: moderationCase.moderatorId,
+      cancelledBy: moderationCase.cancelledBy,
+      cancelledAt:
+        moderationCase.cancelledAt?.toISOString() ?? null
+    },
+    color:
+      moderationCase.status === "CANCELLED"
+        ? 0xed4245
+        : moderationCase.status === "EXPIRED"
+          ? 0x747f8d
+          : 0x57f287
+  });
+}
+
 export async function sendCaseLog(
   runtime: ModerationRuntime,
   moderationCase: ModerationCaseRecord
 ) {
+  await recordModerationCaseEvent(runtime, moderationCase);
+
   const guild =
     runtime.client.guilds.cache.get(runtime.guildId) ??
     (await runtime.client.guilds
@@ -457,11 +513,20 @@ export async function reverseActiveCase(
   }
 
   if (moderationCase.type === "WARN") {
-    await cancelModerationCaseRecord(
+    const cancelled = await cancelModerationCaseRecord(
       runtime.guildId,
       caseNumber,
       moderatorId
     );
+
+    if (cancelled) {
+      await recordModerationCaseEvent(
+        runtime,
+        cancelled,
+        "moderation.case.cancelled"
+      );
+      return cancelled;
+    }
 
     return moderationCase;
   }
@@ -516,11 +581,20 @@ export async function reverseActiveCase(
     throw new Error("Это действие нельзя автоматически отменить.");
   }
 
-  await cancelModerationCaseRecord(
+  const cancelled = await cancelModerationCaseRecord(
     runtime.guildId,
     caseNumber,
     moderatorId
   );
+
+  if (cancelled) {
+    await recordModerationCaseEvent(
+      runtime,
+      cancelled,
+      "moderation.case.cancelled"
+    );
+    return cancelled;
+  }
 
   return moderationCase;
 }
@@ -596,7 +670,14 @@ async function processDueCases(runtime: ModerationRuntime) {
         }
       }
 
-      await markModerationCaseExpired(moderationCase.id);
+      const expired = await markModerationCaseExpired(
+        moderationCase.id
+      );
+      await recordModerationCaseEvent(
+        runtime,
+        expired,
+        "moderation.case.expired"
+      );
     } catch (error) {
       console.error(
         "Не удалось завершить moderation-кейс #" +
