@@ -294,6 +294,7 @@ model MusicPlayerState {
   textChannelId       String?
   controllerMessageId String?
   volume              Int      @default(50)
+  positionMs          BigInt   @default(0)
   loopMode            String   @default("none")
   autoplay            Boolean  @default(false)
   stayConnected       Boolean  @default(false)
