@@ -6,7 +6,8 @@ import {
   StringSelectMenuOptionBuilder,
   ActionRowBuilder,
   type ChatInputCommandInteraction,
-  type Interaction
+  type Interaction,
+  type StringSelectMenuInteraction
 } from "discord.js";
 import {
   EconomyError,
@@ -758,15 +759,8 @@ async function handleCommand(
 
 async function handleShopSelect(
   runtime: EconomyRuntime,
-  interaction: Extract<
-    Interaction,
-    { isStringSelectMenu(): true }
-  >
+  interaction: StringSelectMenuInteraction
 ) {
-  if (!interaction.isStringSelectMenu()) {
-    return false;
-  }
-
   if (!interaction.customId.startsWith("economy:shop:")) {
     return false;
   }
@@ -909,7 +903,7 @@ export async function handleEconomyInteraction(
     interaction.isStringSelectMenu() &&
     interaction.customId.startsWith("economy:shop:")
   ) {
-    return handleShopSelect(runtime, interaction as never);
+    return handleShopSelect(runtime, interaction);
   }
 
   return false;
