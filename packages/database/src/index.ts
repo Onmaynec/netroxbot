@@ -89,3 +89,13 @@ export {
   expireMarketplaceListings,
   listMarketplaceListings
 } from "./marketplace.js";
+
+export {
+  cancelAuction,
+  createServerAuction,
+  createUserAuction,
+  listActiveAuctions,
+  placeAuctionBid,
+  settleAuction,
+  settleDueAuctions
+} from "./auctions.js";
