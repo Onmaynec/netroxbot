@@ -45,6 +45,9 @@ import { handleMusicButton, handleMusicCommand } from "./music-actions.js";
 import { economyCommands } from "./economy-commands.js";
 import { handleEconomyInteraction } from "./economy-actions.js";
 import { handleEconomyMessage, startEconomyVoiceRewards } from "./economy-activity.js";
+import { tradeCommands } from "./trade-commands.js";
+import { handleTradeInteraction } from "./trade-actions.js";
+import { startTradeScheduler } from "./trade-scheduler.js";
 
 const env = z.object({
   DISCORD_TOKEN: z.string().min(1),
@@ -70,7 +73,8 @@ const commands = [
   ].map((command) => command.toJSON()),
   ...moderationCommands,
   ...musicCommands,
-  ...economyCommands
+  ...economyCommands,
+  ...tradeCommands
 ];
 
 const client = new Client({
@@ -94,6 +98,10 @@ const moderationRuntime = {
 };
 
 const economyRuntime = {
+  guildId: env.DISCORD_GUILD_ID
+};
+
+const tradeRuntime = {
   guildId: env.DISCORD_GUILD_ID
 };
 
@@ -658,6 +666,7 @@ client.once("ready", async (readyClient) => {
 
   startModerationScheduler(moderationRuntime);
   startEconomyVoiceRewards(client, economyRuntime);
+  startTradeScheduler(client, tradeRuntime);
 
   console.log(`NetroxBot запущен как ${readyClient.user.tag}`);
 });
@@ -687,6 +696,10 @@ client.on("interactionCreate", async (interaction) => {
     }
 
     if (await handleEconomyInteraction(economyRuntime, interaction)) {
+      return;
+    }
+
+    if (await handleTradeInteraction(tradeRuntime, interaction)) {
       return;
     }
 
