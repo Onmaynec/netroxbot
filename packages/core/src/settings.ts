@@ -639,22 +639,99 @@ export const MODULE_SETTING_FIELDS: Partial<
       kind: "channel"
     },
     {
+      key: "marketplaceEnabled",
+      label: "Торговая площадка",
+      description: "Разрешить участникам выставлять серийные предметы на продажу.",
+      kind: "boolean",
+      defaultValue: true
+    },
+    {
+      key: "marketplaceFeePercent",
+      label: "Комиссия маркетплейса",
+      description: "Процент комиссии с успешной продажи.",
+      kind: "number",
+      defaultValue: 5,
+      min: 0,
+      max: 100
+    },
+    {
+      key: "listingDurationHours",
+      label: "Срок объявления",
+      description: "Через сколько часов непроданное объявление автоматически снимается.",
+      kind: "number",
+      defaultValue: 72,
+      min: 1,
+      max: 2160
+    },
+    {
+      key: "auctionEnabled",
+      label: "Пользовательские аукционы",
+      description: "Разрешить участникам создавать аукционы своих предметов.",
+      kind: "boolean",
+      defaultValue: true
+    },
+    {
+      key: "auctionFeePercent",
+      label: "Комиссия аукциона",
+      description: "Процент комиссии с победной ставки пользовательского аукциона.",
+      kind: "number",
+      defaultValue: 5,
+      min: 0,
+      max: 100
+    },
+    {
+      key: "auctionDefaultHours",
+      label: "Длительность аукциона",
+      description: "Длительность пользовательского аукциона по умолчанию.",
+      kind: "number",
+      defaultValue: 24,
+      min: 1,
+      max: 336
+    },
+    {
+      key: "auctionMinIncrement",
+      label: "Минимальный шаг ставки",
+      description: "Минимальный шаг ставки в NEC, если создатель не указал больше.",
+      kind: "number",
+      defaultValue: 10,
+      min: 1,
+      max: 1000000000
+    },
+    {
       key: "autoAuction",
-      label: "Серверные аукционы",
-      description: "Автоматически запускать серверные аукционы.",
+      label: "Автоматические серверные аукционы",
+      description: "Разрешить NetroxBot автоматически запускать серверные аукционы.",
       kind: "boolean",
       defaultValue: true
     },
     {
       key: "auctionIntervalHours",
-      label: "Интервал аукционов",
-      description: "Период между автоматическими аукционами в часах.",
+      label: "Интервал автоаукционов",
+      description: "Период между автоматическими серверными аукционами.",
       kind: "number",
       defaultValue: 48,
       min: 1,
       max: 720
+    },
+    {
+      key: "autoAuctionDurationHours",
+      label: "Длительность автоаукциона",
+      description: "Сколько часов длится автоматический серверный аукцион.",
+      kind: "number",
+      defaultValue: 12,
+      min: 1,
+      max: 168
+    },
+    {
+      key: "autoAuctionStartPricePercent",
+      label: "Стартовая цена автоаукциона",
+      description: "Процент магазинной цены предмета, с которого начинается серверный аукцион.",
+      kind: "number",
+      defaultValue: 50,
+      min: 1,
+      max: 500
     }
-  ],
+  ]
   levels: [
     {
       key: "messageXp",
@@ -847,6 +924,15 @@ export const MODULE_SETTING_FIELDS: Partial<
       defaultValue: true
     },
     {
+      key: "minBet",
+      label: "Минимальная ставка",
+      description: "Минимальная ставка NEC в одной игре.",
+      kind: "number",
+      defaultValue: 1,
+      min: 0,
+      max: 1000000000
+    },
+    {
       key: "maxBet",
       label: "Максимальная ставка",
       description: "Максимальная ставка NEC в одной игре.",
@@ -854,8 +940,86 @@ export const MODULE_SETTING_FIELDS: Partial<
       defaultValue: 10000,
       min: 0,
       max: 1000000000
+    },
+    {
+      key: "gameFeePercent",
+      label: "Комиссия PvP-игр",
+      description: "Процент из банка матча, который уходит в серверную казну.",
+      kind: "number",
+      defaultValue: 2,
+      min: 0,
+      max: 100
+    },
+    {
+      key: "sessionTimeoutMinutes",
+      label: "Таймаут матча",
+      description: "Через сколько минут незавершённая игровая сессия отменяется.",
+      kind: "number",
+      defaultValue: 10,
+      min: 1,
+      max: 1440
+    },
+    {
+      key: "diceEnabled",
+      label: "Кости",
+      description: "Разрешить PvP-игру в кости.",
+      kind: "boolean",
+      defaultValue: true
+    },
+    {
+      key: "blackjackEnabled",
+      label: "Blackjack",
+      description: "Разрешить игру в blackjack.",
+      kind: "boolean",
+      defaultValue: true
+    },
+    {
+      key: "guessEnabled",
+      label: "Угадай число",
+      description: "Разрешить игру «Угадай число».",
+      kind: "boolean",
+      defaultValue: true
+    },
+    {
+      key: "ticTacToeEnabled",
+      label: "Крестики-нолики",
+      description: "Разрешить PvP крестики-нолики.",
+      kind: "boolean",
+      defaultValue: true
+    },
+    {
+      key: "mathDuelEnabled",
+      label: "Математические дуэли",
+      description: "Разрешить PvP математические дуэли.",
+      kind: "boolean",
+      defaultValue: true
+    },
+    {
+      key: "lotteryEnabled",
+      label: "Лотерея",
+      description: "Разрешить серверные лотереи с билетами за NEC.",
+      kind: "boolean",
+      defaultValue: true
+    },
+    {
+      key: "lotteryFeePercent",
+      label: "Комиссия лотереи",
+      description: "Процент призового фонда, который остаётся в серверной казне.",
+      kind: "number",
+      defaultValue: 5,
+      min: 0,
+      max: 100
+    },
+    {
+      key: "lotteryMaxTicketsPerUser",
+      label: "Лимит билетов",
+      description: "Максимум билетов одного участника в одном розыгрыше.",
+      kind: "number",
+      defaultValue: 100,
+      min: 1,
+      max: 100000
     }
-  ],
+  ]
   giveaways: [
     {
       key: "channelId",
