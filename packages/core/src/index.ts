@@ -22,3 +22,8 @@ export type {
   SettingFieldKind,
   SettingOption
 } from "./settings.js";
+
+export {
+  formatDurationSeconds,
+  parseDurationSeconds
+} from "./duration.js";

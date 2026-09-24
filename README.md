@@ -42,7 +42,7 @@ Production-сборка может сама забирать новые конт
 
 ## Запуск
 
-Подробная инструкция находится в [docs/INSTALL.md](docs/INSTALL.md).
+Подробная инструкция по установке находится в [docs/INSTALL.md](docs/INSTALL.md). Руководство по moderation-кейсам, командам и автомоду — в [docs/MODERATION.md](docs/MODERATION.md).
 
 Для локальной разработки достаточно подготовить `.env` из `.env.example` и выполнить:
 

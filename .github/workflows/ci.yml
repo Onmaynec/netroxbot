@@ -8,8 +8,28 @@ on:
 
 jobs:
   check:
-    name: TypeScript, Prisma и сборка
+    name: TypeScript, Prisma, PostgreSQL и сборка
     runs-on: ubuntu-latest
+
+    env:
+      DATABASE_URL: postgresql://netrox_ci:netrox_ci@localhost:5432/netroxbot_ci?schema=public
+      DISCORD_GUILD_ID: "100000000000000001"
+      SUPERADMIN_DISCORD_ID: "100000000000000002"
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: netrox_ci
+          POSTGRES_PASSWORD: netrox_ci
+          POSTGRES_DB: netroxbot_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U netrox_ci -d netroxbot_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
       - name: Забрать исходники
@@ -31,11 +51,17 @@ jobs:
       - name: Сгенерировать Prisma Client
         run: pnpm db:generate
 
+      - name: Применить миграции к тестовой PostgreSQL
+        run: pnpm db:deploy
+
       - name: Проверить TypeScript
         run: pnpm typecheck
 
       - name: Собрать проект
         run: pnpm build
+
+      - name: Проверить bootstrap базы
+        run: pnpm db:bootstrap
 
       - name: Проверить Docker Compose
         run: |

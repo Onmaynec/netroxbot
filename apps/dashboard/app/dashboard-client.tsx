@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import ModerationPanel from "./moderation-panel";
 
 type SessionUser = {
   discordId: string;
@@ -453,6 +454,18 @@ export default function DashboardClient({ apiUrl }: DashboardProps) {
             </button>
           ))}
 
+          <button
+            className={activeCategory === "moderation_center" ? "navItem active" : "navItem"}
+            onClick={() => selectCategory("moderation_center")}
+            type="button"
+          >
+            <span>🛡️</span>
+            <div>
+              <strong>Moderation Center</strong>
+              <small>Кейсы, апелляции и автомод</small>
+            </div>
+          </button>
+
           {user.level === "SUPERADMIN" && (
             <button
               className={activeCategory === "admins" ? "navItem active" : "navItem"}
@@ -498,10 +511,12 @@ export default function DashboardClient({ apiUrl }: DashboardProps) {
             <h1>
               {selectedModule
                 ? `${selectedModule.emoji} ${selectedModule.title}`
-                : activeCategory === "admins"
-                  ? "Доступ к панели"
-                  : activeCategory === "audit"
-                    ? "Журнал действий"
+                : activeCategory === "moderation_center"
+                  ? "Moderation Center"
+                  : activeCategory === "admins"
+                    ? "Доступ к панели"
+                    : activeCategory === "audit"
+                      ? "Журнал действий"
                     : categories.find((category) => category.key === activeCategory)?.title ??
                       "Настройки"}
             </h1>
@@ -514,7 +529,9 @@ export default function DashboardClient({ apiUrl }: DashboardProps) {
 
         {message && <div className="notice">{message}</div>}
 
-        {activeCategory === "admins" && user.level === "SUPERADMIN" ? (
+        {activeCategory === "moderation_center" ? (
+          <ModerationPanel apiUrl={apiUrl} />
+        ) : activeCategory === "admins" && user.level === "SUPERADMIN" ? (
           <section className="panel">
             <div className="panelHeader">
               <div>

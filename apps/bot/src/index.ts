@@ -30,6 +30,12 @@ import {
 } from "@netrox/core";
 import { prisma } from "@netrox/database";
 import { z } from "zod";
+import {
+  handleModerationInteraction,
+  moderationCommands,
+  startModerationScheduler
+} from "./moderation.js";
+import { handleAutomodMessage } from "./automod.js";
 
 const env = z.object({
   DISCORD_TOKEN: z.string().min(1),
@@ -42,13 +48,16 @@ const ACCENT = 0x57f287;
 const MUTED = 0x747f8d;
 
 const commands = [
-  new SlashCommandBuilder()
-    .setName("help")
-    .setDescription("Открыть справку NetroxBot"),
-  new SlashCommandBuilder()
-    .setName("settings")
-    .setDescription("Открыть настройки NetroxBot")
-].map((command) => command.toJSON());
+  ...[
+    new SlashCommandBuilder()
+      .setName("help")
+      .setDescription("Открыть справку NetroxBot"),
+    new SlashCommandBuilder()
+      .setName("settings")
+      .setDescription("Открыть настройки NetroxBot")
+  ].map((command) => command.toJSON()),
+  ...moderationCommands
+];
 
 const client = new Client({
   intents: [
@@ -62,6 +71,11 @@ const client = new Client({
     GatewayIntentBits.GuildPresences
   ]
 });
+
+const moderationRuntime = {
+  client,
+  guildId: env.DISCORD_GUILD_ID
+};
 
 async function canManageSettings(userId: string): Promise<boolean> {
   if (userId === env.SUPERADMIN_DISCORD_ID) {
@@ -594,12 +608,26 @@ client.once("ready", async (readyClient) => {
     { body: commands }
   );
 
+  startModerationScheduler(moderationRuntime);
+
   console.log(`NetroxBot запущен как ${readyClient.user.tag}`);
+});
+
+client.on("messageCreate", async (message) => {
+  try {
+    await handleAutomodMessage(message, moderationRuntime);
+  } catch (error) {
+    console.error("Ошибка автомодерации", error);
+  }
 });
 
 client.on("interactionCreate", async (interaction) => {
   try {
     if (interaction.guildId && interaction.guildId !== env.DISCORD_GUILD_ID) {
+      return;
+    }
+
+    if (await handleModerationInteraction(interaction, moderationRuntime)) {
       return;
     }
 
