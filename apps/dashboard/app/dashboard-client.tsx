@@ -17,6 +17,24 @@ type SettingsCategory = {
   emoji: string;
 };
 
+type SettingValue = string | number | boolean | null;
+
+type SettingOption = {
+  label: string;
+  value: string;
+};
+
+type SettingField = {
+  key: string;
+  label: string;
+  description: string;
+  kind: "boolean" | "number" | "text" | "channel" | "role" | "select";
+  defaultValue?: SettingValue;
+  min?: number;
+  max?: number;
+  options?: SettingOption[];
+};
+
 type ModuleEntry = {
   key: string;
   category: string;
@@ -26,6 +44,7 @@ type ModuleEntry = {
   defaultEnabled: boolean;
   enabled: boolean;
   settings: Record<string, unknown>;
+  fields: SettingField[];
 };
 
 type AdminEntry = {
@@ -43,6 +62,21 @@ type AuditEntry = {
   targetType: string | null;
   targetId: string | null;
   createdAt: string;
+};
+
+type DiscordResources = {
+  channels: Array<{
+    id: string;
+    name: string;
+    type: number;
+    parentId: string | null;
+  }>;
+  roles: Array<{
+    id: string;
+    name: string;
+    color: number;
+    managed: boolean;
+  }>;
 };
 
 type DashboardProps = {
@@ -71,15 +105,33 @@ async function apiFetch<T>(
   return response.json() as Promise<T>;
 }
 
+function settingValue(value: unknown, fallback: SettingValue): SettingValue {
+  if (
+    value === null ||
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
+    return value;
+  }
+
+  return fallback;
+}
+
 export default function DashboardClient({ apiUrl }: DashboardProps) {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [categories, setCategories] = useState<SettingsCategory[]>([]);
   const [modules, setModules] = useState<ModuleEntry[]>([]);
   const [admins, setAdmins] = useState<AdminEntry[]>([]);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
+  const [resources, setResources] = useState<DiscordResources | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>("security");
+  const [selectedModuleKey, setSelectedModuleKey] = useState<string | null>(null);
+  const [draftSettings, setDraftSettings] = useState<Record<string, SettingValue>>({});
   const [newAdminId, setNewAdminId] = useState("");
+  const [pendingRevokeId, setPendingRevokeId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [savingSettings, setSavingSettings] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
   const loadDashboard = useCallback(async () => {
@@ -135,6 +187,103 @@ export default function DashboardClient({ apiUrl }: DashboardProps) {
     [modules, activeCategory]
   );
 
+  const selectedModule = useMemo(
+    () => modules.find((module) => module.key === selectedModuleKey) ?? null,
+    [modules, selectedModuleKey]
+  );
+
+  async function loadDiscordResources() {
+    if (resources) {
+      return resources;
+    }
+
+    const response = await apiFetch<DiscordResources & { ok: true }>(
+      apiUrl,
+      "/api/v1/discord/resources"
+    );
+
+    const nextResources = {
+      channels: response.channels,
+      roles: response.roles
+    };
+
+    setResources(nextResources);
+    return nextResources;
+  }
+
+  async function openModuleSettings(module: ModuleEntry) {
+    setMessage(null);
+    setSelectedModuleKey(module.key);
+
+    const draft: Record<string, SettingValue> = {};
+
+    for (const field of module.fields) {
+      draft[field.key] = settingValue(
+        module.settings[field.key],
+        field.defaultValue ?? null
+      );
+    }
+
+    setDraftSettings(draft);
+
+    if (module.fields.some((field) => field.kind === "channel" || field.kind === "role")) {
+      try {
+        await loadDiscordResources();
+      } catch (error) {
+        setMessage(
+          error instanceof Error
+            ? error.message
+            : "Не удалось загрузить каналы и роли Discord."
+        );
+      }
+    }
+  }
+
+  function changeSetting(key: string, value: SettingValue) {
+    setDraftSettings((current) => ({
+      ...current,
+      [key]: value
+    }));
+  }
+
+  async function saveModuleSettings() {
+    if (!selectedModule) {
+      return;
+    }
+
+    setSavingSettings(true);
+    setMessage(null);
+
+    try {
+      const response = await apiFetch<{
+        ok: true;
+        module: ModuleEntry;
+      }>(apiUrl, `/api/v1/settings/modules/${selectedModule.key}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          settings: draftSettings
+        })
+      });
+
+      setModules((current) =>
+        current.map((entry) =>
+          entry.key === selectedModule.key
+            ? { ...entry, ...response.module }
+            : entry
+        )
+      );
+      setMessage(`Параметры «${selectedModule.title}» сохранены.`);
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Не удалось сохранить параметры."
+      );
+    } finally {
+      setSavingSettings(false);
+    }
+  }
+
   async function toggleModule(module: ModuleEntry) {
     setMessage(null);
 
@@ -156,7 +305,11 @@ export default function DashboardClient({ apiUrl }: DashboardProps) {
         `${module.title}: ${response.module.enabled ? "включён" : "выключен"}.`
       );
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Не удалось сохранить настройку.");
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Не удалось сохранить настройку."
+      );
     }
   }
 
@@ -183,16 +336,25 @@ export default function DashboardClient({ apiUrl }: DashboardProps) {
       setAdmins(response.admins);
       setMessage(`Доступ для ${discordId} выдан.`);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Не удалось выдать доступ.");
+      setMessage(
+        error instanceof Error ? error.message : "Не удалось выдать доступ."
+      );
     }
   }
 
-  async function revokeAdmin(discordId: string) {
+  async function requestRevokeAdmin(discordId: string) {
+    if (pendingRevokeId !== discordId) {
+      setPendingRevokeId(discordId);
+      setMessage("Нажми «Подтвердить отзыв», чтобы выполнить действие.");
+      return;
+    }
+
     setMessage(null);
 
     try {
       await apiFetch(apiUrl, `/api/v1/admins/${discordId}`, {
-        method: "DELETE"
+        method: "DELETE",
+        body: JSON.stringify({ confirm: true })
       });
 
       setAdmins((current) =>
@@ -202,9 +364,12 @@ export default function DashboardClient({ apiUrl }: DashboardProps) {
             : admin
         )
       );
+      setPendingRevokeId(null);
       setMessage(`Доступ для ${discordId} отозван.`);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Не удалось отозвать доступ.");
+      setMessage(
+        error instanceof Error ? error.message : "Не удалось отозвать доступ."
+      );
     }
   }
 
@@ -218,6 +383,13 @@ export default function DashboardClient({ apiUrl }: DashboardProps) {
     setCategories([]);
     setAdmins([]);
     setAudit([]);
+    setResources(null);
+  }
+
+  function selectCategory(categoryKey: string) {
+    setActiveCategory(categoryKey);
+    setSelectedModuleKey(null);
+    setMessage(null);
   }
 
   if (loading) {
@@ -270,7 +442,7 @@ export default function DashboardClient({ apiUrl }: DashboardProps) {
             <button
               className={activeCategory === category.key ? "navItem active" : "navItem"}
               key={category.key}
-              onClick={() => setActiveCategory(category.key)}
+              onClick={() => selectCategory(category.key)}
               type="button"
             >
               <span>{category.emoji}</span>
@@ -284,7 +456,7 @@ export default function DashboardClient({ apiUrl }: DashboardProps) {
           {user.level === "SUPERADMIN" && (
             <button
               className={activeCategory === "admins" ? "navItem active" : "navItem"}
-              onClick={() => setActiveCategory("admins")}
+              onClick={() => selectCategory("admins")}
               type="button"
             >
               <span>🔐</span>
@@ -297,7 +469,7 @@ export default function DashboardClient({ apiUrl }: DashboardProps) {
 
           <button
             className={activeCategory === "audit" ? "navItem active" : "navItem"}
-            onClick={() => setActiveCategory("audit")}
+            onClick={() => selectCategory("audit")}
             type="button"
           >
             <span>🧾</span>
@@ -324,12 +496,14 @@ export default function DashboardClient({ apiUrl }: DashboardProps) {
           <div>
             <p className="eyebrow">Панель управления</p>
             <h1>
-              {activeCategory === "admins"
-                ? "Доступ к панели"
-                : activeCategory === "audit"
-                  ? "Журнал действий"
-                  : categories.find((category) => category.key === activeCategory)?.title ??
-                    "Настройки"}
+              {selectedModule
+                ? `${selectedModule.emoji} ${selectedModule.title}`
+                : activeCategory === "admins"
+                  ? "Доступ к панели"
+                  : activeCategory === "audit"
+                    ? "Журнал действий"
+                    : categories.find((category) => category.key === activeCategory)?.title ??
+                      "Настройки"}
             </h1>
           </div>
           <div className="onlinePill">
@@ -359,7 +533,11 @@ export default function DashboardClient({ apiUrl }: DashboardProps) {
                 placeholder="Discord ID"
                 inputMode="numeric"
               />
-              <button className="primaryButton compact" onClick={() => void addAdmin()} type="button">
+              <button
+                className="primaryButton compact"
+                onClick={() => void addAdmin()}
+                type="button"
+              >
                 Добавить
               </button>
             </div>
@@ -376,11 +554,17 @@ export default function DashboardClient({ apiUrl }: DashboardProps) {
                   </div>
                   {admin.level !== "SUPERADMIN" && !admin.revokedAt && (
                     <button
-                      className="dangerButton"
-                      onClick={() => void revokeAdmin(admin.discordId)}
+                      className={
+                        pendingRevokeId === admin.discordId
+                          ? "dangerButton confirm"
+                          : "dangerButton"
+                      }
+                      onClick={() => void requestRevokeAdmin(admin.discordId)}
                       type="button"
                     >
-                      Отозвать
+                      {pendingRevokeId === admin.discordId
+                        ? "Подтвердить отзыв"
+                        : "Отозвать"}
                     </button>
                   )}
                 </div>
@@ -394,7 +578,11 @@ export default function DashboardClient({ apiUrl }: DashboardProps) {
                 <h2>Последние действия</h2>
                 <p>Показываются последние 100 записей внутреннего аудита.</p>
               </div>
-              <button className="ghostButton" onClick={() => void loadDashboard()} type="button">
+              <button
+                className="ghostButton"
+                onClick={() => void loadDashboard()}
+                type="button"
+              >
                 Обновить
               </button>
             </div>
@@ -408,13 +596,149 @@ export default function DashboardClient({ apiUrl }: DashboardProps) {
                     <div>
                       <strong>{entry.action}</strong>
                       <span>
-                        {entry.actorId ?? "система"} → {entry.targetId ?? entry.targetType ?? "—"}
+                        {entry.actorId ?? "система"} →{" "}
+                        {entry.targetId ?? entry.targetType ?? "—"}
                       </span>
                     </div>
                     <time>{new Date(entry.createdAt).toLocaleString("ru-RU")}</time>
                   </div>
                 ))
               )}
+            </div>
+          </section>
+        ) : selectedModule ? (
+          <section className="panel settingsEditor">
+            <div className="panelHeader">
+              <div>
+                <h2>Параметры модуля</h2>
+                <p>{selectedModule.description}</p>
+              </div>
+              <button
+                className="ghostButton"
+                onClick={() => setSelectedModuleKey(null)}
+                type="button"
+              >
+                Назад
+              </button>
+            </div>
+
+            <div className="editorFields">
+              {selectedModule.fields.length === 0 ? (
+                <p className="empty">У этого модуля пока нет дополнительных параметров.</p>
+              ) : (
+                selectedModule.fields.map((field) => {
+                  const value = draftSettings[field.key] ?? field.defaultValue ?? null;
+
+                  return (
+                    <label className="editorField" key={field.key}>
+                      <div>
+                        <strong>{field.label}</strong>
+                        <span>{field.description}</span>
+                      </div>
+
+                      {field.kind === "boolean" ? (
+                        <label className="switch">
+                          <input
+                            checked={Boolean(value)}
+                            onChange={(event) =>
+                              changeSetting(field.key, event.target.checked)
+                            }
+                            type="checkbox"
+                          />
+                          <span />
+                        </label>
+                      ) : field.kind === "number" ? (
+                        <input
+                          className="fieldInput"
+                          type="number"
+                          min={field.min}
+                          max={field.max}
+                          value={typeof value === "number" ? value : ""}
+                          onChange={(event) =>
+                            changeSetting(
+                              field.key,
+                              event.target.value === ""
+                                ? null
+                                : Number(event.target.value)
+                            )
+                          }
+                        />
+                      ) : field.kind === "select" ? (
+                        <select
+                          className="fieldInput"
+                          value={typeof value === "string" ? value : ""}
+                          onChange={(event) =>
+                            changeSetting(field.key, event.target.value)
+                          }
+                        >
+                          <option value="">Не выбрано</option>
+                          {(field.options ?? []).map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      ) : field.kind === "channel" ? (
+                        <select
+                          className="fieldInput"
+                          value={typeof value === "string" ? value : ""}
+                          onChange={(event) =>
+                            changeSetting(
+                              field.key,
+                              event.target.value || null
+                            )
+                          }
+                        >
+                          <option value="">Не выбрано</option>
+                          {(resources?.channels ?? []).map((channel) => (
+                            <option key={channel.id} value={channel.id}>
+                              # {channel.name}
+                            </option>
+                          ))}
+                        </select>
+                      ) : field.kind === "role" ? (
+                        <select
+                          className="fieldInput"
+                          value={typeof value === "string" ? value : ""}
+                          onChange={(event) =>
+                            changeSetting(
+                              field.key,
+                              event.target.value || null
+                            )
+                          }
+                        >
+                          <option value="">Не выбрано</option>
+                          {(resources?.roles ?? []).map((role) => (
+                            <option key={role.id} value={role.id}>
+                              {role.name}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          className="fieldInput"
+                          type="text"
+                          value={typeof value === "string" ? value : ""}
+                          onChange={(event) =>
+                            changeSetting(field.key, event.target.value)
+                          }
+                        />
+                      )}
+                    </label>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="editorActions">
+              <button
+                className="primaryButton"
+                disabled={savingSettings}
+                onClick={() => void saveModuleSettings()}
+                type="button"
+              >
+                {savingSettings ? "Сохраняю…" : "Сохранить изменения"}
+              </button>
             </div>
           </section>
         ) : (
@@ -434,8 +758,17 @@ export default function DashboardClient({ apiUrl }: DashboardProps) {
                 </div>
                 <h2>{module.title}</h2>
                 <p>{module.description}</p>
-                <div className={module.enabled ? "state enabled" : "state"}>
-                  {module.enabled ? "Включён" : "Выключен"}
+                <div className="moduleFooter">
+                  <div className={module.enabled ? "state enabled" : "state"}>
+                    {module.enabled ? "Включён" : "Выключен"}
+                  </div>
+                  <button
+                    className="ghostButton"
+                    onClick={() => void openModuleSettings(module)}
+                    type="button"
+                  >
+                    Настроить
+                  </button>
                 </div>
               </article>
             ))}
