@@ -4,6 +4,7 @@ import {
   GuildChannel,
   GuildMember,
   Message,
+  PartialGuildMember,
   Role,
   VoiceState
 } from "discord.js";
@@ -262,7 +263,7 @@ function roleSnapshot(role: Role) {
   };
 }
 
-function memberRoleIds(member: GuildMember) {
+function memberRoleIds(member: GuildMember | PartialGuildMember) {
   return member.roles.cache
     .filter((role) => role.id !== member.guild.id)
     .map((role) => role.id)
@@ -358,7 +359,7 @@ async function logMessageUpdate(
 async function logMemberUpdate(
   client: Client,
   guildId: string,
-  oldMember: GuildMember,
+  oldMember: GuildMember | PartialGuildMember,
   newMember: GuildMember
 ) {
   if (newMember.guild.id !== guildId) {
