@@ -29,38 +29,61 @@ fi
 
 trap 'rm -rf "$BACKUP_DIR/.restore-lock"' EXIT INT TERM
 
+is_valid_backup() {
+  candidate="$1"
+  checksum_file="$candidate.sha256"
+
+  if [ ! -f "$candidate" ] || [ ! -f "$checksum_file" ]; then
+    return 1
+  fi
+
+  expected_checksum="$(awk '{print $1}' "$checksum_file")"
+  actual_checksum="$(sha256sum "$candidate" | awk '{print $1}')"
+
+  if [ -z "$expected_checksum" ] || [ "$expected_checksum" != "$actual_checksum" ]; then
+    return 1
+  fi
+
+  if ! pg_restore --list "$candidate" >/dev/null 2>&1; then
+    return 1
+  fi
+
+  return 0
+}
+
+file=""
+
 if [ -n "$BACKUP_FILE" ]; then
-  file="$BACKUP_DIR/$BACKUP_FILE"
+  requested="$BACKUP_DIR/$BACKUP_FILE"
+
+  if ! is_valid_backup "$requested"; then
+    echo "[NetroxBot Restore] Указанная копия отсутствует или не прошла проверку."
+    exit 1
+  fi
+
+  file="$requested"
 else
-  file="$(find "$BACKUP_DIR" -maxdepth 1 -type f -name 'netroxbot-*.dump' | sort -r | head -n 1)"
+  for candidate in $(find "$BACKUP_DIR" -maxdepth 1 -type f -name 'netroxbot-*.dump' | sort -r); do
+    if is_valid_backup "$candidate"; then
+      file="$candidate"
+      break
+    fi
+
+    echo "[NetroxBot Restore] Пропускаю повреждённую копию: $(basename "$candidate")."
+  done
 fi
 
-if [ -z "$file" ] || [ ! -f "$file" ]; then
-  echo "[NetroxBot Restore] Исправная копия не найдена."
+if [ -z "$file" ]; then
+  echo "[NetroxBot Restore] Ни одной исправной копии не найдено."
   exit 1
 fi
 
 checksum_file="$file.sha256"
-
-if [ ! -f "$checksum_file" ]; then
-  echo "[NetroxBot Restore] Нет SHA-256 для $(basename "$file")."
-  exit 1
-fi
-
 expected="$(awk '{print $1}' "$checksum_file")"
 actual="$(sha256sum "$file" | awk '{print $1}')"
 
-if [ "$expected" != "$actual" ]; then
-  echo "[NetroxBot Restore] SHA-256 не совпадает. Восстановление остановлено."
-  exit 1
-fi
-
-if ! pg_restore --list "$file" >/dev/null 2>&1; then
-  echo "[NetroxBot Restore] Архив повреждён или не является pg_dump custom archive."
-  exit 1
-fi
-
-echo "[NetroxBot Restore] Восстанавливаю $(basename "$file")..."
+echo "[NetroxBot Restore] Выбрана последняя исправная копия: $(basename "$file")."
+echo "[NetroxBot Restore] Восстанавливаю базу..."
 
 psql --dbname=postgres -v ON_ERROR_STOP=1 \
   -v db_name="$POSTGRES_DB" \
