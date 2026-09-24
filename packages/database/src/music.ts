@@ -296,6 +296,7 @@ export async function saveMusicPlayerState(input: {
   textChannelId?: string | null;
   controllerMessageId?: string | null;
   volume?: number;
+  positionMs?: number | bigint;
   loopMode?: "none" | "track" | "queue";
   autoplay?: boolean;
   stayConnected?: boolean;
@@ -313,6 +314,9 @@ export async function saveMusicPlayerState(input: {
       : {}),
     ...(input.volume !== undefined
       ? { volume: Math.min(Math.max(Math.trunc(input.volume), 1), 100) }
+      : {}),
+    ...(input.positionMs !== undefined
+      ? { positionMs: durationBigInt(input.positionMs) }
       : {}),
     ...(input.loopMode !== undefined
       ? { loopMode: input.loopMode }
@@ -342,6 +346,8 @@ export async function saveMusicPlayerState(input: {
       textChannelId: input.textChannelId ?? null,
       controllerMessageId: input.controllerMessageId ?? null,
       volume: input.volume ?? 50,
+      positionMs:
+        input.positionMs === undefined ? BigInt(0) : durationBigInt(input.positionMs),
       loopMode: input.loopMode ?? "none",
       autoplay: input.autoplay ?? false,
       stayConnected: input.stayConnected ?? false,
