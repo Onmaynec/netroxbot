@@ -139,6 +139,45 @@ export const tradeCommandBuilders = [
     )
     .addSubcommand((subcommand) =>
       subcommand
+        .setName("create")
+        .setDescription("Создать серверную лотерею")
+        .addStringOption((option) =>
+          option
+            .setName("название")
+            .setDescription("Название лотереи")
+            .setRequired(true)
+            .setMaxLength(80)
+        )
+        .addIntegerOption((option) =>
+          option
+            .setName("цена")
+            .setDescription("Цена одного билета в NEC")
+            .setRequired(true)
+            .setMinValue(1)
+        )
+        .addIntegerOption((option) =>
+          option
+            .setName("часы")
+            .setDescription("Сколько часов идёт продажа билетов")
+            .setRequired(true)
+            .setMinValue(1)
+            .setMaxValue(336)
+        )
+        .addIntegerOption((option) =>
+          option
+            .setName("билеты")
+            .setDescription("Общий лимит билетов")
+            .setMinValue(1)
+        )
+        .addIntegerOption((option) =>
+          option
+            .setName("на_участника")
+            .setDescription("Лимит билетов на одного участника")
+            .setMinValue(1)
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
         .setName("buy")
         .setDescription("Купить билеты")
         .addStringOption((option) =>
