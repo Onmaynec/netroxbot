@@ -231,11 +231,16 @@ export async function getModeratorStats(
   since?: Date
 ) {
   const cases = await prisma.moderationCase.findMany({
-    where: {
-      guildId,
-      moderatorId,
-      createdAt: since ? { gte: since } : undefined
-    },
+    where: since
+      ? {
+          guildId,
+          moderatorId,
+          createdAt: { gte: since }
+        }
+      : {
+          guildId,
+          moderatorId
+        },
     select: {
       type: true,
       status: true
