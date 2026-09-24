@@ -1,6 +1,6 @@
 {
   "name": "@netrox/dashboard",
-  "version": "0.6.0-dev.1",
+  "version": "0.6.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
