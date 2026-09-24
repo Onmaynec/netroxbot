@@ -147,7 +147,8 @@ async function ensurePlayer(
     guildId: runtime.guildId,
     voiceChannelId: voiceId,
     textChannelId: interaction.channelId,
-    volume
+    volume,
+    autoplay: musicBooleanSetting(config.settings, "autoplay", false)
   });
 
   return player;
