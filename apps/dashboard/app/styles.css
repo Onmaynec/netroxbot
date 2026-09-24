@@ -554,6 +554,83 @@ p {
   color: var(--muted);
 }
 
+
+.moduleFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.settingsEditor {
+  max-width: 860px;
+}
+
+.editorFields {
+  display: grid;
+  gap: 10px;
+}
+
+.editorField {
+  min-height: 74px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 300px);
+  align-items: center;
+  gap: 24px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--panel-soft);
+}
+
+.editorField > div {
+  display: grid;
+  gap: 4px;
+}
+
+.editorField strong {
+  font-size: 13px;
+}
+
+.editorField > div > span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.fieldInput {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  outline: none;
+  background: #090d0a;
+  color: var(--text);
+}
+
+.fieldInput:focus {
+  border-color: rgba(87, 242, 135, .55);
+}
+
+.editorActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+
+.primaryButton:disabled {
+  cursor: progress;
+  opacity: .55;
+  transform: none;
+}
+
+.dangerButton.confirm {
+  border-color: rgba(242, 109, 120, .55);
+  background: rgba(242, 109, 120, .1);
+  color: #ffb2b8;
+}
+
 @media (max-width: 1060px) {
   .moduleGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -619,5 +696,18 @@ p {
   .auditRow {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .editorField {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .editorActions {
+    justify-content: stretch;
+  }
+
+  .editorActions .primaryButton {
+    width: 100%;
   }
 }
