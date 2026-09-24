@@ -93,14 +93,38 @@ export const MODULE_SETTING_FIELDS: Partial<
     },
     {
       key: "exemptRoleId",
-      label: "Роль-исключение",
-      description: "Основная роль, на которую автомодерация не действует.",
+      label: "Роль-исключение 1",
+      description: "Роль, на которую автомодерация не действует.",
+      kind: "role"
+    },
+    {
+      key: "exemptRoleId2",
+      label: "Роль-исключение 2",
+      description: "Дополнительная роль-исключение.",
+      kind: "role"
+    },
+    {
+      key: "exemptRoleId3",
+      label: "Роль-исключение 3",
+      description: "Дополнительная роль-исключение.",
       kind: "role"
     },
     {
       key: "exemptChannelId",
-      label: "Канал-исключение",
-      description: "Основной канал, в котором автомодерация не действует.",
+      label: "Канал-исключение 1",
+      description: "Канал, в котором автомодерация не действует.",
+      kind: "channel"
+    },
+    {
+      key: "exemptChannelId2",
+      label: "Канал-исключение 2",
+      description: "Дополнительный канал-исключение.",
+      kind: "channel"
+    },
+    {
+      key: "exemptChannelId3",
+      label: "Канал-исключение 3",
+      description: "Дополнительный канал-исключение.",
       kind: "channel"
     },
     {
