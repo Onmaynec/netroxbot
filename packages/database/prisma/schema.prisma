@@ -193,27 +193,151 @@ model UserProfile {
 }
 
 model EconomyAccount {
-  id        String   @id @default(cuid())
-  guildId   String
-  userId    String
-  wallet    BigInt   @default(0)
-  bank      BigInt   @default(0)
-  seasonId  String?
-  updatedAt DateTime @updatedAt
+  id             String   @id @default(cuid())
+  guildId        String
+  userId         String
+  wallet         BigInt   @default(0)
+  bank           BigInt   @default(0)
+  seasonId       String?
+  lifetimeEarned BigInt   @default(0)
+  lifetimeSpent  BigInt   @default(0)
+  lastDailyAt    DateTime?
+  lastWorkAt     DateTime?
+  frozenAt       DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@unique([guildId, userId])
+  @@index([guildId, wallet])
+  @@index([guildId, bank])
 }
 
 model EconomyTransaction {
-  id        String   @id @default(cuid())
-  guildId   String
-  userId    String
-  amount    BigInt
-  type      String
-  metadata  Json?
-  createdAt DateTime @default(now())
+  id                 String   @id @default(cuid())
+  guildId            String
+  userId             String
+  counterpartyUserId String?
+  amount             BigInt
+  walletDelta        BigInt   @default(0)
+  bankDelta          BigInt   @default(0)
+  type               String
+  referenceId        String?
+  metadata           Json?
+  createdAt          DateTime @default(now())
 
   @@index([guildId, userId, createdAt])
+  @@index([guildId, type, createdAt])
+  @@index([referenceId])
+}
+
+model EconomySeason {
+  id            String   @id @default(cuid())
+  guildId       String
+  name          String
+  status        String   @default("PLANNED")
+  startsAt      DateTime
+  endsAt        DateTime?
+  resetBalances Boolean  @default(false)
+  createdBy     String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([guildId, status, startsAt])
+}
+
+model EconomyTreasury {
+  guildId       String   @id
+  balance       BigInt   @default(0)
+  minted        BigInt   @default(0)
+  burned        BigInt   @default(0)
+  collectedFees BigInt   @default(0)
+  updatedAt     DateTime @updatedAt
+}
+
+model EconomyItemDefinition {
+  id          String                @id @default(cuid())
+  guildId     String
+  sku         String
+  name        String
+  description String?
+  rarity      String                @default("COMMON")
+  itemType    String                @default("COLLECTIBLE")
+  imageUrl    String?
+  roleId      String?
+  price       BigInt
+  stock       Int?
+  maxPerUser  Int?
+  tradable    Boolean               @default(true)
+  giftable    Boolean               @default(true)
+  active      Boolean               @default(true)
+  metadata    Json?
+  createdBy   String
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  instances   EconomyItemInstance[]
+
+  @@unique([guildId, sku])
+  @@index([guildId, active, rarity])
+}
+
+model EconomyItemInstance {
+  id           String                @id @default(cuid())
+  guildId      String
+  itemId       String
+  ownerId      String
+  serialNumber Int
+  variant      Json?
+  acquiredFrom String
+  acquiredAt   DateTime              @default(now())
+  lockedUntil  DateTime?
+  item         EconomyItemDefinition @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, serialNumber])
+  @@index([guildId, ownerId, acquiredAt])
+  @@index([guildId, ownerId, itemId])
+}
+
+model EconomyLoan {
+  id          String   @id @default(cuid())
+  guildId     String
+  userId      String
+  principal   BigInt
+  balance     BigInt
+  interestBps Int
+  status      String   @default("ACTIVE")
+  dueAt       DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  paidAt      DateTime?
+
+  @@index([guildId, userId, status])
+  @@index([guildId, status, dueAt])
+}
+
+model EconomyRoleSalary {
+  id              String                   @id @default(cuid())
+  guildId         String
+  roleId          String
+  amount          BigInt
+  intervalMinutes Int
+  enabled         Boolean                  @default(true)
+  createdBy       String
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+  claims          EconomyRoleSalaryClaim[]
+
+  @@unique([guildId, roleId])
+}
+
+model EconomyRoleSalaryClaim {
+  id            String            @id @default(cuid())
+  salaryId      String
+  userId        String
+  lastClaimedAt DateTime
+  salary        EconomyRoleSalary @relation(fields: [salaryId], references: [id], onDelete: Cascade)
+
+  @@unique([salaryId, userId])
+  @@index([userId, lastClaimedAt])
 }
 
 model MusicPlaylist {
