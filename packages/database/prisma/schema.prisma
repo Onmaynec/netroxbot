@@ -1,0 +1,148 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AdminLevel {
+  SUPERADMIN
+  ADMIN
+}
+
+enum PunishmentType {
+  WARN
+  TIMEOUT
+  MUTE
+  KICK
+  BAN
+  TEMP_BAN
+}
+
+enum PunishmentStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+model GuildConfig {
+  id        String   @id @default(cuid())
+  guildId   String   @unique
+  locale    String   @default("ru")
+  accentHex String   @default("#57F287")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  modules   ModuleConfig[]
+}
+
+model ModuleConfig {
+  id        String      @id @default(cuid())
+  guildId   String
+  moduleKey String
+  enabled   Boolean     @default(true)
+  settings  Json        @default("{}")
+  guild     GuildConfig @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+  updatedAt DateTime    @updatedAt
+
+  @@unique([guildId, moduleKey])
+}
+
+model AdminUser {
+  id        String     @id @default(cuid())
+  discordId String     @unique
+  level     AdminLevel @default(ADMIN)
+  addedBy   String?
+  createdAt DateTime   @default(now())
+  revokedAt DateTime?
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  guildId    String
+  actorId    String?
+  action     String
+  targetType String?
+  targetId   String?
+  payload    Json?
+  createdAt  DateTime @default(now())
+
+  @@index([guildId, createdAt])
+}
+
+model Punishment {
+  id          String           @id @default(cuid())
+  caseNumber  Int
+  guildId     String
+  userId      String
+  moderatorId String
+  type        PunishmentType
+  status      PunishmentStatus @default(ACTIVE)
+  reason      String
+  evidence    Json?
+  expiresAt   DateTime?
+  cancelledBy String?
+  cancelledAt DateTime?
+  createdAt   DateTime         @default(now())
+
+  @@unique([guildId, caseNumber])
+  @@index([guildId, userId])
+}
+
+model Appeal {
+  id           String   @id @default(cuid())
+  guildId      String
+  punishmentId String
+  userId       String
+  text         String
+  status       String   @default("PENDING")
+  reviewerId   String?
+  reviewNote   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([guildId, userId])
+}
+
+model UserProfile {
+  id          String   @id @default(cuid())
+  guildId     String
+  userId      String
+  xp          BigInt   @default(0)
+  level       Int      @default(1)
+  reputation  Int      @default(0)
+  messages    BigInt   @default(0)
+  voiceSeconds BigInt  @default(0)
+  bio         String?
+  links       Json?
+  cosmetics   Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([guildId, userId])
+}
+
+model EconomyAccount {
+  id          String   @id @default(cuid())
+  guildId     String
+  userId      String
+  wallet      BigInt   @default(0)
+  bank        BigInt   @default(0)
+  seasonId    String?
+  updatedAt   DateTime @updatedAt
+
+  @@unique([guildId, userId])
+}
+
+model EconomyTransaction {
+  id        String   @id @default(cuid())
+  guildId   String
+  userId    String
+  amount    BigInt
+  type      String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([guildId, userId, createdAt])
+}
