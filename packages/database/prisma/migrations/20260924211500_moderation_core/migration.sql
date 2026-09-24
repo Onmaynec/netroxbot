@@ -16,6 +16,12 @@ CREATE TABLE "ModerationCounter" (
   CONSTRAINT "ModerationCounter_pkey" PRIMARY KEY ("guildId")
 );
 
+INSERT INTO "ModerationCounter" ("guildId", "nextCaseNumber")
+SELECT "guildId", COALESCE(MAX("caseNumber"), 0) + 1
+FROM "Punishment"
+GROUP BY "guildId"
+ON CONFLICT ("guildId") DO NOTHING;
+
 CREATE TABLE "AutomodEvent" (
   "id" TEXT NOT NULL,
   "guildId" TEXT NOT NULL,
