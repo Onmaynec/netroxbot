@@ -105,9 +105,12 @@ export {
   cancelGameSession,
   createLotteryRound,
   createPvpGame,
+  createSoloGame,
   expireGameSessions,
   joinPvpGame,
+  playInstantHouseGame,
   settleDueLotteries,
+  settleHouseGame,
   settleLotteryRound,
   settlePvpGame,
   updateGameState
