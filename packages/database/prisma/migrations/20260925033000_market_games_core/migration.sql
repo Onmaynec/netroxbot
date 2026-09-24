@@ -96,6 +96,7 @@ CREATE TABLE "EconomyLotteryRound" (
   "guildId" TEXT NOT NULL,
   "title" TEXT NOT NULL,
   "status" TEXT NOT NULL DEFAULT 'SCHEDULED',
+  "version" INTEGER NOT NULL DEFAULT 1,
   "ticketPrice" BIGINT NOT NULL,
   "maxTickets" INTEGER,
   "maxTicketsPerUser" INTEGER,

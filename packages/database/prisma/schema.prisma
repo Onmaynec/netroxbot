@@ -454,6 +454,7 @@ model EconomyLotteryRound {
   guildId           String
   title             String
   status            String                 @default("SCHEDULED")
+  version           Int                    @default(1)
   ticketPrice       BigInt
   maxTickets        Int?
   maxTicketsPerUser Int?

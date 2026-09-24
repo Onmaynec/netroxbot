@@ -99,3 +99,16 @@ export {
   settleAuction,
   settleDueAuctions
 } from "./auctions.js";
+
+export {
+  buyLotteryTickets,
+  cancelGameSession,
+  createLotteryRound,
+  createPvpGame,
+  expireGameSessions,
+  joinPvpGame,
+  settleDueLotteries,
+  settleLotteryRound,
+  settlePvpGame,
+  updateGameState
+} from "./games.js";
