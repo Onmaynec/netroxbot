@@ -145,21 +145,8 @@ export async function emitServerLog(
   guildId: string,
   input: EmitInput
 ) {
-  const config = await getLogConfig(guildId);
-
-  if (!config.enabled) {
-    return;
-  }
-
-  const toggleKey = CATEGORY_TOGGLES[input.category];
-
-  if (
-    toggleKey &&
-    !booleanSetting(config.settings, toggleKey, true)
-  ) {
-    return;
-  }
-
+  // Внутренний журнал хранится независимо от Discord-каналов и переключателей.
+  // Даже если внешний лог выключен, событие остаётся в БД.
   const stored = await recordServerEvent({
     guildId,
     category: input.category,
@@ -172,6 +159,21 @@ export async function emitServerLog(
     messageId: input.messageId ?? null,
     payload: input.payload ?? null
   });
+
+  const config = await getLogConfig(guildId);
+
+  if (!config.enabled) {
+    return stored;
+  }
+
+  const toggleKey = CATEGORY_TOGGLES[input.category];
+
+  if (
+    toggleKey &&
+    !booleanSetting(config.settings, toggleKey, true)
+  ) {
+    return stored;
+  }
 
   const channelId =
     stringSetting(
@@ -727,6 +729,47 @@ export function registerServerLogging(client: Client, guildId: string) {
       });
     } catch (error) {
       console.error("Ошибка invite.delete лога", error);
+    }
+  });
+
+  client.on("guildBanAdd", async (ban) => {
+    try {
+      if (ban.guild.id !== guildId) return;
+
+      await emitServerLog(client, guildId, {
+        category: "moderation",
+        eventType: "member.ban",
+        summary: "Пользователь " + ban.user.tag + " заблокирован на сервере.",
+        targetType: "user",
+        targetId: ban.user.id,
+        payload: {
+          userTag: ban.user.tag,
+          reason: ban.reason ?? null
+        },
+        color: 0xed4245
+      });
+    } catch (error) {
+      console.error("Ошибка member.ban лога", error);
+    }
+  });
+
+  client.on("guildBanRemove", async (ban) => {
+    try {
+      if (ban.guild.id !== guildId) return;
+
+      await emitServerLog(client, guildId, {
+        category: "moderation",
+        eventType: "member.unban",
+        summary: "С пользователя " + ban.user.tag + " снят ban.",
+        targetType: "user",
+        targetId: ban.user.id,
+        payload: {
+          userTag: ban.user.tag
+        },
+        color: 0x57f287
+      });
+    } catch (error) {
+      console.error("Ошибка member.unban лога", error);
     }
   });
 
