@@ -3,9 +3,13 @@ import type { Redis } from "ioredis";
 import { z } from "zod";
 import {
   activateEconomySeason,
+  applyWealthTax,
   createEconomyItem,
   createEconomySeason,
-  prisma
+  disableRoleSalary,
+  listRoleSalaries,
+  prisma,
+  upsertRoleSalary
 } from "@netrox/database";
 import { requireSession } from "./auth.js";
 
@@ -70,6 +74,20 @@ const seasonBodySchema = z.object({
   resetBalances: z.boolean().default(false)
 });
 
+const salaryBodySchema = z.object({
+  roleId: z.string().regex(/^\d{17,20}$/),
+  amount: z.string().regex(/^\d+$/),
+  intervalMinutes: z.number().int().min(1).max(525600)
+});
+
+const roleParamsSchema = z.object({
+  roleId: z.string().regex(/^\d{17,20}$/)
+});
+
+const taxBodySchema = z.object({
+  confirm: z.literal(true)
+});
+
 function bigint(value: bigint | null | undefined) {
   return (value ?? 0n).toString();
 }
@@ -81,6 +99,24 @@ function serializeItem<T extends {
     ...item,
     price: item.price.toString()
   };
+}
+
+function record(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function numberSetting(
+  settings: Record<string, unknown>,
+  key: string,
+  fallback: number
+) {
+  const value = settings[key];
+
+  return typeof value === "number" && Number.isFinite(value)
+    ? value
+    : fallback;
 }
 
 export function registerEconomyRoutes(
@@ -511,4 +547,185 @@ export function registerEconomyRoutes(
       };
     }
   );
+
+  app.get("/api/v1/economy/salaries", async (request, reply) => {
+    const session = await requireSession(request, reply, redis);
+    if (!session) return;
+
+    const salaries = await listRoleSalaries(config.guildId);
+
+    return {
+      ok: true,
+      salaries: salaries.map((salary) => ({
+        ...salary,
+        amount: salary.amount.toString()
+      }))
+    };
+  });
+
+  app.post("/api/v1/economy/salaries", async (request, reply) => {
+    const session = await requireSession(request, reply, redis);
+    if (!session) return;
+
+    const body = salaryBodySchema.safeParse(request.body);
+
+    if (!body.success) {
+      return reply.code(400).send({
+        ok: false,
+        error: "INVALID_SALARY",
+        message: "Проверь роль, сумму и интервал зарплаты."
+      });
+    }
+
+    const salary = await upsertRoleSalary({
+      guildId: config.guildId,
+      roleId: body.data.roleId,
+      amount: BigInt(body.data.amount),
+      intervalMinutes: body.data.intervalMinutes,
+      createdBy: session.discordId
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        guildId: config.guildId,
+        actorId: session.discordId,
+        action: "economy.salary.upsert",
+        targetType: "role",
+        targetId: salary.roleId,
+        payload: {
+          amount: salary.amount.toString(),
+          intervalMinutes: salary.intervalMinutes
+        }
+      }
+    });
+
+    return {
+      ok: true,
+      salary: {
+        ...salary,
+        amount: salary.amount.toString()
+      }
+    };
+  });
+
+  app.delete(
+    "/api/v1/economy/salaries/:roleId",
+    async (request, reply) => {
+      const session = await requireSession(request, reply, redis);
+      if (!session) return;
+
+      const params = roleParamsSchema.safeParse(request.params);
+
+      if (!params.success) {
+        return reply.code(400).send({
+          ok: false,
+          error: "INVALID_ROLE",
+          message: "Некорректный Discord Role ID."
+        });
+      }
+
+      const salary = await disableRoleSalary(
+        config.guildId,
+        params.data.roleId
+      );
+
+      await prisma.auditLog.create({
+        data: {
+          guildId: config.guildId,
+          actorId: session.discordId,
+          action: "economy.salary.disable",
+          targetType: "role",
+          targetId: salary.roleId
+        }
+      });
+
+      return {
+        ok: true
+      };
+    }
+  );
+
+  app.post("/api/v1/economy/tax-run", async (request, reply) => {
+    const session = await requireSession(request, reply, redis);
+    if (!session) return;
+
+    if (session.level !== "SUPERADMIN") {
+      return reply.code(403).send({
+        ok: false,
+        error: "SUPERADMIN_REQUIRED",
+        message: "Запустить массовый налог может только владелец NetroxBot."
+      });
+    }
+
+    const body = taxBodySchema.safeParse(request.body);
+
+    if (!body.success) {
+      return reply.code(400).send({
+        ok: false,
+        error: "CONFIRMATION_REQUIRED",
+        message: "Нужно явно подтвердить массовое списание налога."
+      });
+    }
+
+    const moduleConfig = await prisma.moduleConfig.findUnique({
+      where: {
+        guildId_moduleKey: {
+          guildId: config.guildId,
+          moduleKey: "economy"
+        }
+      }
+    });
+    const settings = record(moduleConfig?.settings);
+    const percent = Math.max(
+      0,
+      Math.min(
+        numberSetting(settings, "wealthTaxPercent", 1),
+        100
+      )
+    );
+    const minimumTotal = BigInt(
+      Math.max(
+        0,
+        Math.trunc(
+          numberSetting(
+            settings,
+            "wealthTaxMinimumBalance",
+            10000
+          )
+        )
+      )
+    );
+
+    const result = await applyWealthTax({
+      guildId: config.guildId,
+      rateBps: Math.round(percent * 100),
+      minimumTotal,
+      actorId: session.discordId
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        guildId: config.guildId,
+        actorId: session.discordId,
+        action: "economy.wealth_tax.run",
+        targetType: "economy",
+        targetId: config.guildId,
+        payload: {
+          percent,
+          minimumTotal: minimumTotal.toString(),
+          affectedAccounts: result.affectedAccounts,
+          collected: result.collected.toString()
+        }
+      }
+    });
+
+    return {
+      ok: true,
+      result: {
+        affectedAccounts: result.affectedAccounts,
+        collected: result.collected.toString()
+      }
+    };
+  });
+
 }
