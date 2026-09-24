@@ -27,3 +27,27 @@ export {
 } from "./events.js";
 
 export type { ServerEventInput } from "./events.js";
+
+export {
+  addTrackToMusicPlaylist,
+  clearMusicQueue,
+  createMusicPlaylist,
+  deleteMusicPlaylist,
+  getMusicPlayerState,
+  getMusicPlaylist,
+  listMusicFavorites,
+  listMusicHistory,
+  listMusicPlaylists,
+  loadMusicQueue,
+  musicTrackKey,
+  persistMusicQueue,
+  recordMusicHistory,
+  removeTrackFromMusicPlaylist,
+  saveMusicPlayerState,
+  toggleMusicFavorite
+} from "./music.js";
+
+export type {
+  MusicQueueTrackData,
+  MusicTrackData
+} from "./music.js";

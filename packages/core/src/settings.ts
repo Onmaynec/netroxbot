@@ -604,29 +604,105 @@ export const MODULE_SETTING_FIELDS: Partial<
     {
       key: "djRoleId",
       label: "DJ-роль",
-      description: "Роль с расширенным управлением музыкой.",
+      description: "Роль с расширенным управлением музыкой и принудительным skip.",
       kind: "role"
     },
     {
       key: "defaultVolume",
       label: "Громкость по умолчанию",
-      description: "Стартовая громкость плеера.",
+      description: "Стартовая громкость нового плеера.",
       kind: "number",
       defaultValue: 50,
       min: 1,
       max: 100
     },
     {
+      key: "defaultSearchSource",
+      label: "Источник поиска",
+      description: "Где искать трек, если пользователь указал название, а не ссылку.",
+      kind: "select",
+      defaultValue: "youtube_music",
+      options: [
+        { label: "YouTube Music", value: "youtube_music" },
+        { label: "YouTube", value: "youtube" },
+        { label: "SoundCloud", value: "soundcloud" },
+        { label: "Spotify", value: "spotify" },
+        { label: "Яндекс Музыка", value: "yandex_music" }
+      ]
+    },
+    {
       key: "autoplay",
       label: "Autoplay",
-      description: "Продолжать подбор музыки после окончания очереди.",
+      description: "Продолжать подбор похожей музыки после окончания очереди.",
       kind: "boolean",
       defaultValue: false
+    },
+    {
+      key: "voteSkipEnabled",
+      label: "Vote Skip",
+      description: "Для обычных участников использовать голосование вместо мгновенного skip.",
+      kind: "boolean",
+      defaultValue: true
+    },
+    {
+      key: "voteSkipPercent",
+      label: "Процент голосов для skip",
+      description: "Какая доля слушателей должна проголосовать за пропуск трека.",
+      kind: "number",
+      defaultValue: 50,
+      min: 10,
+      max: 100
     },
     {
       key: "leaveWhenEmpty",
       label: "Выход из пустого войса",
       description: "Отключаться, когда в голосовом канале никого не осталось.",
+      kind: "boolean",
+      defaultValue: true
+    },
+    {
+      key: "emptyTimeoutSeconds",
+      label: "Таймер пустого войса",
+      description: "Через сколько секунд покинуть пустой голосовой канал.",
+      kind: "number",
+      defaultValue: 120,
+      min: 15,
+      max: 3600
+    },
+    {
+      key: "allow247",
+      label: "Режим 24/7",
+      description: "Разрешить закреплять плеер в голосовом канале после окончания очереди.",
+      kind: "boolean",
+      defaultValue: true
+    },
+    {
+      key: "maxQueueSize",
+      label: "Максимальная очередь",
+      description: "Максимум треков в очереди одного плеера.",
+      kind: "number",
+      defaultValue: 500,
+      min: 10,
+      max: 5000
+    },
+    {
+      key: "userPlaylists",
+      label: "Плейлисты пользователей",
+      description: "Разрешить сохранять собственные плейлисты.",
+      kind: "boolean",
+      defaultValue: true
+    },
+    {
+      key: "favorites",
+      label: "Избранное",
+      description: "Разрешить сохранять треки в избранное.",
+      kind: "boolean",
+      defaultValue: true
+    },
+    {
+      key: "history",
+      label: "История прослушивания",
+      description: "Хранить историю прослушанных пользователем треков.",
       kind: "boolean",
       defaultValue: true
     }

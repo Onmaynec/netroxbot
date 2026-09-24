@@ -100,12 +100,17 @@ services:
       retries: 10
 
   lavalink:
-    image: ghcr.io/lavalink-devs/lavalink:4
+    image: ghcr.io/lavalink-devs/lavalink:4.2.2
     restart: unless-stopped
     environment:
       _JAVA_OPTIONS: "-Xmx1G"
       SERVER_PORT: 2333
       LAVALINK_SERVER_PASSWORD: ${LAVALINK_PASSWORD}
+      SPOTIFY_ENABLED: ${SPOTIFY_ENABLED:-false}
+      SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID:-}
+      SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET:-}
+      YANDEX_MUSIC_ENABLED: ${YANDEX_MUSIC_ENABLED:-false}
+      YANDEX_MUSIC_TOKEN: ${YANDEX_MUSIC_TOKEN:-}
     volumes:
       - ./infra/lavalink/application.yml:/opt/Lavalink/application.yml
     ports:

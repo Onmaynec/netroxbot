@@ -38,12 +38,19 @@ import {
 } from "./moderation.js";
 import { handleAutomodMessage } from "./automod.js";
 import { emitServerLog, registerServerLogging } from "./logging.js";
+import { musicCommands } from "./music-commands.js";
+import { createMusicRuntime } from "./music-runtime.js";
+import { registerMusicController } from "./music-controller.js";
+import { handleMusicButton, handleMusicCommand } from "./music-actions.js";
 
 const env = z.object({
   DISCORD_TOKEN: z.string().min(1),
   DISCORD_CLIENT_ID: z.string().min(1),
   DISCORD_GUILD_ID: z.string().min(1),
-  SUPERADMIN_DISCORD_ID: z.string().min(1)
+  SUPERADMIN_DISCORD_ID: z.string().min(1),
+  LAVALINK_HOST: z.string().min(1).default("lavalink"),
+  LAVALINK_PORT: z.coerce.number().int().positive().default(2333),
+  LAVALINK_PASSWORD: z.string().min(1)
 }).parse(process.env);
 
 const ACCENT = 0x57f287;
@@ -58,7 +65,8 @@ const commands = [
       .setName("settings")
       .setDescription("Открыть настройки NetroxBot")
   ].map((command) => command.toJSON()),
-  ...moderationCommands
+  ...moderationCommands,
+  ...musicCommands
 ];
 
 const client = new Client({
@@ -81,6 +89,14 @@ const moderationRuntime = {
   guildId: env.DISCORD_GUILD_ID
 };
 
+const musicRuntime = createMusicRuntime(client, {
+  guildId: env.DISCORD_GUILD_ID,
+  host: env.LAVALINK_HOST,
+  port: env.LAVALINK_PORT,
+  password: env.LAVALINK_PASSWORD
+});
+
+registerMusicController(musicRuntime);
 registerServerLogging(client, env.DISCORD_GUILD_ID);
 
 async function canManageSettings(userId: string): Promise<boolean> {
@@ -652,6 +668,20 @@ client.on("interactionCreate", async (interaction) => {
     }
 
     if (await handleModerationInteraction(interaction, moderationRuntime)) {
+      return;
+    }
+
+    if (
+      interaction.isChatInputCommand() &&
+      (await handleMusicCommand(musicRuntime, interaction))
+    ) {
+      return;
+    }
+
+    if (
+      interaction.isButton() &&
+      (await handleMusicButton(musicRuntime, interaction))
+    ) {
       return;
     }
 

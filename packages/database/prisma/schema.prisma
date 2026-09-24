@@ -215,3 +215,110 @@ model EconomyTransaction {
 
   @@index([guildId, userId, createdAt])
 }
+
+model MusicPlaylist {
+  id        String               @id @default(cuid())
+  guildId   String
+  ownerId   String
+  name      String
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  tracks    MusicPlaylistTrack[]
+
+  @@unique([guildId, ownerId, name])
+  @@index([guildId, ownerId, updatedAt])
+}
+
+model MusicPlaylistTrack {
+  id          String        @id @default(cuid())
+  playlistId  String
+  position    Int
+  trackKey    String
+  sourceName  String
+  identifier  String
+  title       String
+  author      String
+  uri         String?
+  artworkUrl  String?
+  durationMs  BigInt
+  isStream    Boolean       @default(false)
+  addedBy     String
+  createdAt   DateTime      @default(now())
+  playlist    MusicPlaylist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+
+  @@unique([playlistId, position])
+  @@index([playlistId, trackKey])
+}
+
+model MusicFavorite {
+  id          String   @id @default(cuid())
+  guildId     String
+  userId      String
+  trackKey    String
+  sourceName  String
+  identifier  String
+  title       String
+  author      String
+  uri         String?
+  artworkUrl  String?
+  durationMs  BigInt
+  isStream    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@unique([guildId, userId, trackKey])
+  @@index([guildId, userId, createdAt])
+}
+
+model MusicHistory {
+  id          String   @id @default(cuid())
+  guildId     String
+  userId      String
+  trackKey    String
+  sourceName  String
+  identifier  String
+  title       String
+  author      String
+  uri         String?
+  artworkUrl  String?
+  durationMs  BigInt
+  isStream    Boolean  @default(false)
+  playedAt    DateTime @default(now())
+
+  @@index([guildId, userId, playedAt])
+  @@index([guildId, playedAt])
+}
+
+model MusicPlayerState {
+  guildId             String   @id
+  voiceChannelId      String?
+  textChannelId       String?
+  controllerMessageId String?
+  volume              Int      @default(50)
+  positionMs          BigInt   @default(0)
+  loopMode            String   @default("none")
+  autoplay            Boolean  @default(false)
+  stayConnected       Boolean  @default(false)
+  lastTrack           Json?
+  updatedAt           DateTime @updatedAt
+}
+
+model MusicQueueEntry {
+  id          String   @id @default(cuid())
+  guildId     String
+  position    Int
+  requesterId String
+  trackKey    String
+  sourceName  String
+  identifier  String
+  title       String
+  author      String
+  uri         String?
+  artworkUrl  String?
+  durationMs  BigInt
+  isStream    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@unique([guildId, position])
+  @@index([guildId, position])
+}
+
