@@ -3,6 +3,8 @@ ALTER TABLE "EconomyAccount"
   ADD COLUMN "lifetimeSpent" BIGINT NOT NULL DEFAULT 0,
   ADD COLUMN "lastDailyAt" TIMESTAMP(3),
   ADD COLUMN "lastWorkAt" TIMESTAMP(3),
+  ADD COLUMN "lastMessageRewardAt" TIMESTAMP(3),
+  ADD COLUMN "lastVoiceRewardAt" TIMESTAMP(3),
   ADD COLUMN "frozenAt" TIMESTAMP(3),
   ADD COLUMN "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
 
@@ -48,6 +50,7 @@ CREATE TABLE "EconomyItemDefinition" (
   "roleId" TEXT,
   "price" BIGINT NOT NULL,
   "stock" INTEGER,
+  "nextSerial" INTEGER NOT NULL DEFAULT 1,
   "maxPerUser" INTEGER,
   "tradable" BOOLEAN NOT NULL DEFAULT true,
   "giftable" BOOLEAN NOT NULL DEFAULT true,
