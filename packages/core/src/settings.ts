@@ -194,6 +194,34 @@ export const MODULE_SETTING_FIELDS: Partial<
       defaultValue: 75,
       min: 50,
       max: 100
+    },
+    {
+      key: "action",
+      label: "Действие автомода",
+      description: "Что делать после срабатывания правила.",
+      kind: "select",
+      defaultValue: "warn",
+      options: [
+        { label: "Только удалить сообщение", value: "delete" },
+        { label: "Удалить и выдать warn", value: "warn" },
+        { label: "Удалить и выдать timeout", value: "timeout" }
+      ]
+    },
+    {
+      key: "timeoutMinutes",
+      label: "Timeout автомода",
+      description: "Длительность timeout при соответствующем действии.",
+      kind: "number",
+      defaultValue: 10,
+      min: 1,
+      max: 40320
+    },
+    {
+      key: "deleteMessage",
+      label: "Удалять нарушение",
+      description: "Удалять сообщение, которое вызвало срабатывание автомода.",
+      kind: "boolean",
+      defaultValue: true
     }
   ],
   logs: [
