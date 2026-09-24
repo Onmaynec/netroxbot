@@ -10,6 +10,7 @@ import { registerDiscordResourceRoutes } from "./discord.js";
 import { registerModerationRoutes } from "./moderation.js";
 import { registerEventsRoutes } from "./events.js";
 import { registerEconomyRoutes } from "./economy.js";
+import { registerTradeRoutes } from "./trade.js";
 
 const env = z.object({
   API_PORT: z.coerce.number().default(3001),
@@ -69,6 +70,10 @@ registerEventsRoutes(app, redis, {
 });
 
 registerEconomyRoutes(app, redis, {
+  guildId: env.DISCORD_GUILD_ID
+});
+
+registerTradeRoutes(app, redis, {
   guildId: env.DISCORD_GUILD_ID
 });
 
