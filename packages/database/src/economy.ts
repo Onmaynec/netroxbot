@@ -606,7 +606,9 @@ export async function createEconomyItem(input: {
       stock: input.stock ?? null,
       maxPerUser: input.maxPerUser ?? null,
       tradable: input.tradable ?? true,
-      giftable: input.giftable ?? true,
+      giftable:
+        input.giftable ??
+        (input.itemType.toUpperCase() === "ROLE" ? false : true),
       metadata: json(input.metadata),
       createdBy: input.createdBy
     }
@@ -769,6 +771,90 @@ export async function buyShopItem(input: {
   });
 }
 
+export async function refundShopPurchase(input: {
+  guildId: string;
+  userId: string;
+  instanceId: string;
+  reason: string;
+}) {
+  return prisma.$transaction(async (tx) => {
+    const instance = await tx.economyItemInstance.findFirst({
+      where: {
+        id: input.instanceId,
+        guildId: input.guildId,
+        ownerId: input.userId,
+        acquiredFrom: "SHOP"
+      },
+      include: {
+        item: true
+      }
+    });
+
+    if (!instance) {
+      throw new EconomyError(
+        "PURCHASE_NOT_FOUND",
+        "Покупку для возврата не удалось найти."
+      );
+    }
+
+    await ensureAccountTx(tx, input.guildId, input.userId);
+    await ensureTreasuryTx(tx, input.guildId);
+
+    await tx.economyItemInstance.delete({
+      where: { id: instance.id }
+    });
+
+    if (instance.item.stock !== null) {
+      await tx.economyItemDefinition.update({
+        where: { id: instance.item.id },
+        data: {
+          stock: { increment: 1 }
+        }
+      });
+    }
+
+    const account = await tx.economyAccount.update({
+      where: {
+        guildId_userId: {
+          guildId: input.guildId,
+          userId: input.userId
+        }
+      },
+      data: {
+        wallet: { increment: instance.item.price },
+        lifetimeSpent: { decrement: instance.item.price }
+      }
+    });
+
+    await tx.economyTreasury.update({
+      where: { guildId: input.guildId },
+      data: {
+        balance: { decrement: instance.item.price }
+      }
+    });
+
+    await ledgerTx(tx, {
+      guildId: input.guildId,
+      userId: input.userId,
+      amount: instance.item.price,
+      walletDelta: instance.item.price,
+      type: "SHOP_REFUND",
+      referenceId: instance.id,
+      metadata: {
+        itemId: instance.item.id,
+        sku: instance.item.sku,
+        serialNumber: instance.serialNumber,
+        reason: input.reason
+      }
+    });
+
+    return {
+      refunded: instance.item.price,
+      account
+    };
+  });
+}
+
 export function listInventory(
   guildId: string,
   userId: string,
@@ -821,10 +907,12 @@ export async function giftItem(input: {
       );
     }
 
-    if (!instance.item.giftable) {
+    if (!instance.item.giftable || instance.item.roleId) {
       throw new EconomyError(
         "ITEM_NOT_GIFTABLE",
-        "Этот предмет нельзя дарить."
+        instance.item.roleId
+          ? "Предметы, выдающие Discord-роль, нельзя передавать другому участнику."
+          : "Этот предмет нельзя дарить."
       );
     }
 
@@ -1137,14 +1225,53 @@ export async function activateEconomySeason(
     });
 
     if (season.resetBalances) {
-      await tx.economyAccount.updateMany({
-        where: { guildId },
-        data: {
-          wallet: 0n,
-          bank: 0n,
-          seasonId: season.id
-        }
+      const accounts = await tx.economyAccount.findMany({
+        where: { guildId }
       });
+      let burned = 0n;
+
+      await ensureTreasuryTx(tx, guildId);
+
+      for (const account of accounts) {
+        const removed = account.wallet + account.bank;
+
+        await tx.economyAccount.update({
+          where: { id: account.id },
+          data: {
+            wallet: 0n,
+            bank: 0n,
+            seasonId: season.id
+          }
+        });
+
+        if (removed <= 0n) {
+          continue;
+        }
+
+        burned += removed;
+
+        await ledgerTx(tx, {
+          guildId,
+          userId: account.userId,
+          amount: -removed,
+          walletDelta: -account.wallet,
+          bankDelta: -account.bank,
+          type: "SEASON_RESET",
+          referenceId: season.id,
+          metadata: {
+            seasonName: season.name
+          }
+        });
+      }
+
+      if (burned > 0n) {
+        await tx.economyTreasury.update({
+          where: { guildId },
+          data: {
+            burned: { increment: burned }
+          }
+        });
+      }
     } else {
       await tx.economyAccount.updateMany({
         where: { guildId },

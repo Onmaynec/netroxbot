@@ -74,6 +74,7 @@ export {
   markOverdueEconomyLoans,
   moveBetweenWalletAndBank,
   removeWallet,
+  refundShopPurchase,
   repayLoan,
   takeLoan,
   transferWallet,

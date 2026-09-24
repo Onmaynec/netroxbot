@@ -26,6 +26,7 @@ import {
   listShopItems,
   moveBetweenWalletAndBank,
   removeWallet,
+  refundShopPurchase,
   repayLoan,
   takeLoan,
   transferWallet,
@@ -986,10 +987,30 @@ async function handleShopSelect(
       const member = await interaction.guild.members.fetch(
         interaction.user.id
       );
-      await member.roles.add(
-        purchase.instance.item.roleId,
-        "Покупка в магазине NetroxBot"
-      );
+
+      try {
+        await member.roles.add(
+          purchase.instance.item.roleId,
+          "Покупка в магазине NetroxBot"
+        );
+      } catch (error) {
+        await refundShopPurchase({
+          guildId: runtime.guildId,
+          userId: interaction.user.id,
+          instanceId: purchase.instance.id,
+          reason: "Discord не смог выдать роль после покупки"
+        }).catch((refundError) => {
+          console.error(
+            "Не удалось автоматически вернуть NEC за роль",
+            refundError
+          );
+        });
+
+        throw new EconomyError(
+          "ROLE_GRANT_FAILED",
+          "Discord не смог выдать роль. Покупка отменена, NEC возвращены."
+        );
+      }
     }
 
     const embed = new EmbedBuilder()
