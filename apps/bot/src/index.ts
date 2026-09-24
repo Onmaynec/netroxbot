@@ -42,6 +42,9 @@ import { musicCommands } from "./music-commands.js";
 import { createMusicRuntime } from "./music-runtime.js";
 import { registerMusicController } from "./music-controller.js";
 import { handleMusicButton, handleMusicCommand } from "./music-actions.js";
+import { economyCommands } from "./economy-commands.js";
+import { handleEconomyInteraction } from "./economy-actions.js";
+import { handleEconomyMessage, startEconomyVoiceRewards } from "./economy-activity.js";
 
 const env = z.object({
   DISCORD_TOKEN: z.string().min(1),
@@ -66,7 +69,8 @@ const commands = [
       .setDescription("Открыть настройки NetroxBot")
   ].map((command) => command.toJSON()),
   ...moderationCommands,
-  ...musicCommands
+  ...musicCommands,
+  ...economyCommands
 ];
 
 const client = new Client({
@@ -86,6 +90,10 @@ const client = new Client({
 
 const moderationRuntime = {
   client,
+  guildId: env.DISCORD_GUILD_ID
+};
+
+const economyRuntime = {
   guildId: env.DISCORD_GUILD_ID
 };
 
@@ -649,6 +657,7 @@ client.once("ready", async (readyClient) => {
   );
 
   startModerationScheduler(moderationRuntime);
+  startEconomyVoiceRewards(client, economyRuntime);
 
   console.log(`NetroxBot запущен как ${readyClient.user.tag}`);
 });
@@ -659,6 +668,12 @@ client.on("messageCreate", async (message) => {
   } catch (error) {
     console.error("Ошибка автомодерации", error);
   }
+
+  try {
+    await handleEconomyMessage(economyRuntime, message);
+  } catch (error) {
+    console.error("Ошибка экономики активности", error);
+  }
 });
 
 client.on("interactionCreate", async (interaction) => {
@@ -668,6 +683,10 @@ client.on("interactionCreate", async (interaction) => {
     }
 
     if (await handleModerationInteraction(interaction, moderationRuntime)) {
+      return;
+    }
+
+    if (await handleEconomyInteraction(economyRuntime, interaction)) {
       return;
     }
 

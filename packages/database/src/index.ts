@@ -51,3 +51,33 @@ export type {
   MusicQueueTrackData,
   MusicTrackData
 } from "./music.js";
+
+export {
+  EconomyError,
+  activateEconomySeason,
+  buyShopItem,
+  claimActivityReward,
+  claimDailyReward,
+  claimWorkReward,
+  createEconomyItem,
+  createEconomySeason,
+  getActiveLoan,
+  getEconomyAccount,
+  giftItem,
+  claimRoleSalaries,
+  disableRoleSalary,
+  grantWallet,
+  listEconomyTransactions,
+  listInventory,
+  listRoleSalaries,
+  listShopItems,
+  markOverdueEconomyLoans,
+  moveBetweenWalletAndBank,
+  removeWallet,
+  refundShopPurchase,
+  repayLoan,
+  takeLoan,
+  transferWallet,
+  upsertRoleSalary,
+  applyWealthTax
+} from "./economy.js";
