@@ -731,7 +731,7 @@ export const MODULE_SETTING_FIELDS: Partial<
       min: 1,
       max: 500
     }
-  ]
+  ],
   levels: [
     {
       key: "messageXp",
@@ -1053,7 +1053,7 @@ export const MODULE_SETTING_FIELDS: Partial<
       min: 1,
       max: 100000
     }
-  ]
+  ],
   giveaways: [
     {
       key: "channelId",
