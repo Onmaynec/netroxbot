@@ -231,13 +231,13 @@ export async function createServerAuction(input: {
   });
 }
 
-export function listActiveAuctions(
+export async function listActiveAuctions(
   guildId: string,
   take = 50
 ) {
   const now = new Date();
 
-  return prisma.economyAuction.findMany({
+  const auctions = await prisma.economyAuction.findMany({
     where: {
       guildId,
       status: { in: ["SCHEDULED", "ACTIVE"] },
@@ -254,6 +254,58 @@ export function listActiveAuctions(
       { endsAt: "asc" }
     ],
     take: Math.max(1, Math.min(take, 100))
+  });
+
+  const instanceIds = auctions
+    .map((auction) => auction.itemInstanceId)
+    .filter((value): value is string => Boolean(value));
+  const definitionIds = auctions
+    .map((auction) => auction.itemDefinitionId)
+    .filter((value): value is string => Boolean(value));
+
+  const [instances, definitions] = await Promise.all([
+    instanceIds.length === 0
+      ? Promise.resolve([])
+      : prisma.economyItemInstance.findMany({
+          where: {
+            id: { in: instanceIds },
+            guildId
+          },
+          include: { item: true }
+        }),
+    definitionIds.length === 0
+      ? Promise.resolve([])
+      : prisma.economyItemDefinition.findMany({
+          where: {
+            id: { in: definitionIds },
+            guildId
+          }
+        })
+  ]);
+
+  const instancesById = new Map(
+    instances.map((instance) => [instance.id, instance])
+  );
+  const definitionsById = new Map(
+    definitions.map((definition) => [definition.id, definition])
+  );
+
+  return auctions.map((auction) => {
+    const instance = auction.itemInstanceId
+      ? instancesById.get(auction.itemInstanceId)
+      : undefined;
+    const item =
+      instance?.item ??
+      (auction.itemDefinitionId
+        ? definitionsById.get(auction.itemDefinitionId)
+        : undefined) ??
+      null;
+
+    return {
+      ...auction,
+      item,
+      serialNumber: instance?.serialNumber ?? null
+    };
   });
 }
 
