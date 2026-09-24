@@ -63,6 +63,9 @@ jobs:
       - name: Проверить экономику на PostgreSQL
         run: pnpm --filter @netrox/database smoke:economy
 
+      - name: Проверить рынок и escrow на PostgreSQL
+        run: pnpm --filter @netrox/database smoke:trade
+
       - name: Проверить bootstrap базы
         run: pnpm db:bootstrap
 

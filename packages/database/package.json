@@ -18,7 +18,8 @@
     "bootstrap": "node dist/src/bootstrap.js",
     "typecheck": "prisma generate && tsc -p tsconfig.json --noEmit",
     "build": "prisma generate && tsc -p tsconfig.json",
-    "smoke:economy": "node dist/src/economy-smoke.js"
+    "smoke:economy": "node dist/src/economy-smoke.js",
+    "smoke:trade": "node dist/src/trade-smoke.js"
   },
   "dependencies": {
     "@prisma/client": "7.10.0",
