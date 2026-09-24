@@ -5,6 +5,8 @@ RUN corepack enable
 
 COPY . .
 RUN pnpm install --no-frozen-lockfile
-RUN pnpm --filter @netrox/api build
+RUN pnpm db:generate
+RUN pnpm build
 
-CMD ["pnpm", "--filter", "@netrox/api", "start"]
+EXPOSE 3001
+CMD ["sh", "scripts/start-service.sh", "@netrox/api"]
