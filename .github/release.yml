@@ -1,0 +1,24 @@
+changelog:
+  exclude:
+    labels:
+      - "не включать в релиз"
+
+  categories:
+    - title: "Новые возможности"
+      labels:
+        - "функция"
+        - "enhancement"
+
+    - title: "Исправления"
+      labels:
+        - "ошибка"
+        - "bug"
+
+    - title: "Документация"
+      labels:
+        - "документация"
+        - "documentation"
+
+    - title: "Остальные изменения"
+      labels:
+        - "*"

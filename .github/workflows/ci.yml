@@ -1,0 +1,44 @@
+name: Проверка проекта
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  check:
+    name: TypeScript, Prisma и сборка
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Забрать исходники
+        uses: actions/checkout@v7
+
+      - name: Установить pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.25.0
+
+      - name: Установить Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24.21.0
+
+      - name: Установить зависимости
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Сгенерировать Prisma Client
+        run: pnpm db:generate
+
+      - name: Проверить TypeScript
+        run: pnpm typecheck
+
+      - name: Собрать проект
+        run: pnpm build
+
+      - name: Проверить Docker Compose
+        run: |
+          cp .env.example .env
+          docker compose -f docker-compose.yml config >/dev/null
+          docker compose -f docker-compose.prod.yml config >/dev/null

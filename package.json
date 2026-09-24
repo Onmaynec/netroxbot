@@ -1,0 +1,26 @@
+{
+  "name": "netroxbot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.25.0",
+  "engines": {
+    "node": ">=24.17.0"
+  },
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "typecheck": "turbo typecheck",
+    "dev:bot": "pnpm --filter @netrox/bot dev",
+    "dev:api": "pnpm --filter @netrox/api dev",
+    "dev:dashboard": "pnpm --filter @netrox/dashboard dev",
+    "db:generate": "pnpm --filter @netrox/database generate",
+    "db:migrate": "pnpm --filter @netrox/database migrate",
+    "db:deploy": "pnpm --filter @netrox/database migrate:deploy",
+    "db:bootstrap": "pnpm --filter @netrox/database bootstrap"
+  },
+  "devDependencies": {
+    "turbo": "^2.10.12",
+    "typescript": "~5.9.3"
+  }
+}

@@ -1,0 +1,15 @@
+node_modules
+.pnpm-store
+.turbo
+.next
+dist
+coverage
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+.idea
+.vscode
+packages/database/generated
+packages/database/prisma/migrations/*/migration_lock.toml
