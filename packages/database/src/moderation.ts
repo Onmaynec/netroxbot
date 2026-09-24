@@ -507,12 +507,16 @@ export async function recordAutomodEvent(input: {
           " → " +
           input.action +
           ".",
-        payload: {
-          automodEventId: event.id,
-          ruleKey: input.ruleKey,
-          action: input.action,
-          metadata: input.metadata ?? null
-        }
+        payload: JSON.parse(
+          JSON.stringify({
+            automodEventId: event.id,
+            ruleKey: input.ruleKey,
+            action: input.action,
+            ...(input.metadata
+              ? { metadata: input.metadata }
+              : {})
+          })
+        )
       }
     });
 
