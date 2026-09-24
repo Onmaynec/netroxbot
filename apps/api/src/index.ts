@@ -49,7 +49,8 @@ await registerAuthRoutes(app, redis, {
 });
 
 registerSettingsRoutes(app, redis, {
-  guildId: env.DISCORD_GUILD_ID
+  guildId: env.DISCORD_GUILD_ID,
+  botToken: env.DISCORD_TOKEN
 });
 
 registerDiscordResourceRoutes(app, redis, {
