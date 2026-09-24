@@ -783,6 +783,17 @@ export async function cancelAuction(input: {
       auction.sellerId === input.actorId ||
       auction.createdBy === input.actorId;
 
+    if (
+      auction.currentBid !== null &&
+      ownsAuction &&
+      !input.force
+    ) {
+      throw new EconomyError(
+        "AUCTION_HAS_BIDS",
+        "Аукцион со ставками уже нельзя снять самостоятельно."
+      );
+    }
+
     if (!ownsAuction && !input.force) {
       throw new EconomyError(
         "AUCTION_FORBIDDEN",
