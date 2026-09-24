@@ -81,3 +81,11 @@ export {
   upsertRoleSalary,
   applyWealthTax
 } from "./economy.js";
+
+export {
+  buyMarketplaceListing,
+  cancelMarketplaceListing,
+  createMarketplaceListing,
+  expireMarketplaceListings,
+  listMarketplaceListings
+} from "./marketplace.js";
