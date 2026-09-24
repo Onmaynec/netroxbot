@@ -75,6 +75,38 @@ export async function createModerationCase(input: ModerationCaseInput) {
       }
     });
 
+    await tx.serverEvent.create({
+      data: {
+        guildId: input.guildId,
+        category: "moderation",
+        eventType: "moderation.case.create",
+        actorId: input.moderatorId,
+        targetType: input.targetUserId
+          ? "user"
+          : input.targetChannelId
+            ? "channel"
+            : "moderation_case",
+        targetId:
+          input.targetUserId ??
+          input.targetChannelId ??
+          moderationCase.id,
+        channelId: input.targetChannelId ?? null,
+        summary:
+          "Создан moderation-кейс #" +
+          caseNumber +
+          " (" +
+          input.type +
+          ").",
+        payload: {
+          caseId: moderationCase.id,
+          caseNumber,
+          type: input.type,
+          reason: input.reason,
+          expiresAt: input.expiresAt?.toISOString() ?? null
+        }
+      }
+    });
+
     return moderationCase;
   });
 }
@@ -193,6 +225,36 @@ export async function cancelModerationCaseRecord(
       }
     });
 
+    await tx.serverEvent.create({
+      data: {
+        guildId,
+        category: "moderation",
+        eventType: "moderation.case.cancel",
+        actorId: cancelledBy,
+        targetType: updated.targetUserId
+          ? "user"
+          : updated.targetChannelId
+            ? "channel"
+            : "moderation_case",
+        targetId:
+          updated.targetUserId ??
+          updated.targetChannelId ??
+          updated.id,
+        channelId: updated.targetChannelId,
+        summary:
+          "Отменён moderation-кейс #" +
+          caseNumber +
+          " (" +
+          updated.type +
+          ").",
+        payload: {
+          caseId: updated.id,
+          caseNumber,
+          type: updated.type
+        }
+      }
+    });
+
     return updated;
   });
 }
@@ -296,13 +358,37 @@ export async function createAppeal(input: {
     };
   }
 
-  const appeal = await prisma.appeal.create({
-    data: {
-      guildId: input.guildId,
-      caseId: moderationCase.id,
-      userId: input.userId,
-      text: input.text
-    }
+  const appeal = await prisma.$transaction(async (tx) => {
+    const created = await tx.appeal.create({
+      data: {
+        guildId: input.guildId,
+        caseId: moderationCase.id,
+        userId: input.userId,
+        text: input.text
+      }
+    });
+
+    await tx.serverEvent.create({
+      data: {
+        guildId: input.guildId,
+        category: "moderation",
+        eventType: "moderation.appeal.create",
+        actorId: input.userId,
+        targetType: "user",
+        targetId: input.userId,
+        summary:
+          "Создана апелляция на кейс #" +
+          input.caseNumber +
+          ".",
+        payload: {
+          appealId: created.id,
+          caseId: moderationCase.id,
+          caseNumber: input.caseNumber
+        }
+      }
+    });
+
+    return created;
   });
 
   return {
@@ -343,16 +429,42 @@ export async function reviewAppeal(input: {
   accepted: boolean;
   note?: string | null;
 }) {
-  return prisma.appeal.update({
-    where: { id: input.id },
-    data: {
-      status: input.accepted ? "ACCEPTED" : "REJECTED",
-      reviewerId: input.reviewerId,
-      reviewNote: input.note ?? null
-    },
-    include: {
-      case: true
-    }
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.appeal.update({
+      where: { id: input.id },
+      data: {
+        status: input.accepted ? "ACCEPTED" : "REJECTED",
+        reviewerId: input.reviewerId,
+        reviewNote: input.note ?? null
+      },
+      include: {
+        case: true
+      }
+    });
+
+    await tx.serverEvent.create({
+      data: {
+        guildId: updated.guildId,
+        category: "moderation",
+        eventType: "moderation.appeal.review",
+        actorId: input.reviewerId,
+        targetType: "user",
+        targetId: updated.userId,
+        summary:
+          "Апелляция по кейсу #" +
+          updated.case.caseNumber +
+          " " +
+          (input.accepted ? "принята." : "отклонена."),
+        payload: {
+          appealId: updated.id,
+          caseNumber: updated.case.caseNumber,
+          accepted: input.accepted,
+          note: input.note ?? null
+        }
+      }
+    });
+
+    return updated;
   });
 }
 
@@ -365,17 +477,45 @@ export async function recordAutomodEvent(input: {
   action: string;
   metadata?: Record<string, unknown> | null;
 }) {
-  return prisma.automodEvent.create({
-    data: {
-      guildId: input.guildId,
-      userId: input.userId,
-      channelId: input.channelId,
-      messageId: input.messageId ?? null,
-      ruleKey: input.ruleKey,
-      action: input.action,
-      metadata: input.metadata
-        ? JSON.parse(JSON.stringify(input.metadata))
-        : undefined
-    }
+  return prisma.$transaction(async (tx) => {
+    const event = await tx.automodEvent.create({
+      data: {
+        guildId: input.guildId,
+        userId: input.userId,
+        channelId: input.channelId,
+        messageId: input.messageId ?? null,
+        ruleKey: input.ruleKey,
+        action: input.action,
+        metadata: input.metadata
+          ? JSON.parse(JSON.stringify(input.metadata))
+          : undefined
+      }
+    });
+
+    await tx.serverEvent.create({
+      data: {
+        guildId: input.guildId,
+        category: "moderation",
+        eventType: "automod.trigger",
+        targetType: "user",
+        targetId: input.userId,
+        channelId: input.channelId,
+        messageId: input.messageId ?? null,
+        summary:
+          "Сработал автомод: " +
+          input.ruleKey +
+          " → " +
+          input.action +
+          ".",
+        payload: {
+          automodEventId: event.id,
+          ruleKey: input.ruleKey,
+          action: input.action,
+          metadata: input.metadata ?? null
+        }
+      }
+    });
+
+    return event;
   });
 }
