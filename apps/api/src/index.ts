@@ -6,11 +6,13 @@ import { z } from "zod";
 import { prisma } from "@netrox/database";
 import { registerAuthRoutes } from "./auth.js";
 import { registerSettingsRoutes } from "./settings.js";
+import { registerDiscordResourceRoutes } from "./discord.js";
 
 const env = z.object({
   API_PORT: z.coerce.number().default(3001),
   REDIS_URL: z.string().url(),
   DISCORD_GUILD_ID: z.string().min(1),
+  DISCORD_TOKEN: z.string().min(1),
   DISCORD_OAUTH_CLIENT_ID: z.string().min(1),
   DISCORD_OAUTH_CLIENT_SECRET: z.string().min(1),
   DISCORD_OAUTH_REDIRECT_URI: z.string().url(),
@@ -47,6 +49,11 @@ await registerAuthRoutes(app, redis, {
 
 registerSettingsRoutes(app, redis, {
   guildId: env.DISCORD_GUILD_ID
+});
+
+registerDiscordResourceRoutes(app, redis, {
+  guildId: env.DISCORD_GUILD_ID,
+  botToken: env.DISCORD_TOKEN
 });
 
 async function dependencyStatus() {
