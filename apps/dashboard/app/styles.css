@@ -777,6 +777,129 @@ p {
   color: #f6a4ab;
 }
 
+
+.eventsCenter {
+  display: grid;
+  gap: 14px;
+}
+
+.metricSmall {
+  font-size: 19px !important;
+}
+
+.eventFilters {
+  display: grid;
+  grid-template-columns: minmax(180px, 280px) minmax(240px, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.eventList,
+.backupList {
+  display: grid;
+  gap: 8px;
+}
+
+.eventList {
+  max-height: 720px;
+  overflow-y: auto;
+}
+
+.eventRow {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 14px;
+  padding: 13px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel-soft);
+}
+
+.eventMeta {
+  display: grid;
+  gap: 4px;
+}
+
+.eventMeta strong {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+}
+
+.eventCategory {
+  width: fit-content;
+  padding: 3px 7px;
+  border: 1px solid rgba(87, 242, 135, .22);
+  border-radius: 999px;
+  background: rgba(87, 242, 135, .07);
+  color: var(--accent);
+  font-size: 10px;
+}
+
+.eventBody {
+  min-width: 0;
+}
+
+.eventBody p {
+  margin: 0 0 5px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.eventBody small,
+.eventRow time,
+.backupRow time,
+.backupRow span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.backupRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel-soft);
+}
+
+.backupRow > div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.backupRow strong {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.backupStatus {
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+
+.backupStatus.valid,
+.backupStatus.restored {
+  border-color: rgba(87, 242, 135, .28);
+  background: rgba(87, 242, 135, .08);
+  color: var(--accent);
+}
+
+.backupStatus.failed {
+  border-color: rgba(242, 109, 120, .28);
+  background: rgba(242, 109, 120, .08);
+  color: #f39aa2;
+}
+
 @media (max-width: 1060px) {
   .moduleGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -784,6 +907,22 @@ p {
 
   .metricGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .eventRow {
+    grid-template-columns: 130px minmax(0, 1fr);
+  }
+
+  .eventRow time {
+    grid-column: 2;
+  }
+
+  .backupRow {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .backupRow time {
+    grid-column: 1 / -1;
   }
 
   .dashboard {
@@ -852,6 +991,20 @@ p {
 
   .metricGrid {
     grid-template-columns: 1fr;
+  }
+
+  .eventFilters {
+    grid-template-columns: 1fr;
+  }
+
+  .eventRow,
+  .backupRow {
+    grid-template-columns: 1fr;
+  }
+
+  .eventRow time,
+  .backupRow time {
+    grid-column: auto;
   }
 
   .adminAdd {
