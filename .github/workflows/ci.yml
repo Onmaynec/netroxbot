@@ -24,7 +24,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24.21.0
-          cache: pnpm
 
       - name: Установить зависимости
         run: pnpm install --no-frozen-lockfile
