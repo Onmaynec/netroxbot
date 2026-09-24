@@ -19,9 +19,9 @@ type LedgerInput = {
   walletDelta?: bigint;
   bankDelta?: bigint;
   type: string;
-  counterpartyUserId?: string | null;
-  referenceId?: string | null;
-  metadata?: JsonRecord | null;
+  counterpartyUserId?: string | null | undefined;
+  referenceId?: string | null | undefined;
+  metadata?: JsonRecord | null | undefined;
 };
 
 function positiveAmount(amount: bigint) {
