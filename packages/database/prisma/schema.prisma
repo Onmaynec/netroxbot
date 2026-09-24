@@ -426,12 +426,16 @@ model EconomyEscrow {
 model EconomyGameSession {
   id            String   @id @default(cuid())
   guildId       String
+  requestId     String?  @unique
   gameType      String
   hostId        String
   opponentId    String?
+  channelId     String?
+  messageId     String?
   status        String   @default("WAITING")
   stake         BigInt   @default(0)
   pot           BigInt   @default(0)
+  feeBps        Int      @default(0)
   winnerId      String?
   state         Json     @default("{}")
   version       Int      @default(1)
@@ -446,13 +450,15 @@ model EconomyGameSession {
 }
 
 model EconomyLotteryRound {
-  id           String                 @id @default(cuid())
-  guildId      String
-  title        String
-  status       String                 @default("SCHEDULED")
-  ticketPrice  BigInt
-  maxTickets   Int?
-  pot          BigInt                 @default(0)
+  id                String                 @id @default(cuid())
+  guildId           String
+  title             String
+  status            String                 @default("SCHEDULED")
+  ticketPrice       BigInt
+  maxTickets        Int?
+  maxTicketsPerUser Int?
+  feeBps            Int                    @default(0)
+  pot               BigInt                 @default(0)
   winnerId     String?
   startsAt     DateTime
   endsAt       DateTime
