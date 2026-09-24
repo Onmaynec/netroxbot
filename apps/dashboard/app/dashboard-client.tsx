@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ModerationPanel from "./moderation-panel";
 import EventsPanel from "./events-panel";
+import EconomyPanel from "./economy-panel";
 
 type SessionUser = {
   discordId: string;
@@ -456,6 +457,18 @@ export default function DashboardClient({ apiUrl }: DashboardProps) {
           ))}
 
           <button
+            className={activeCategory === "economy_center" ? "navItem active" : "navItem"}
+            onClick={() => selectCategory("economy_center")}
+            type="button"
+          >
+            <span>🪙</span>
+            <div>
+              <strong>Economy Center</strong>
+              <small>NetCoin, магазин, кредиты и сезоны</small>
+            </div>
+          </button>
+
+          <button
             className={activeCategory === "logs_center" ? "navItem active" : "navItem"}
             onClick={() => selectCategory("logs_center")}
             type="button"
@@ -524,7 +537,9 @@ export default function DashboardClient({ apiUrl }: DashboardProps) {
             <h1>
               {selectedModule
                 ? `${selectedModule.emoji} ${selectedModule.title}`
-                : activeCategory === "logs_center"
+                : activeCategory === "economy_center"
+                  ? "Economy Center"
+                  : activeCategory === "logs_center"
                   ? "Логи и backup"
                   : activeCategory === "moderation_center"
                     ? "Moderation Center"
@@ -544,7 +559,9 @@ export default function DashboardClient({ apiUrl }: DashboardProps) {
 
         {message && <div className="notice">{message}</div>}
 
-        {activeCategory === "logs_center" ? (
+        {activeCategory === "economy_center" ? (
+          <EconomyPanel apiUrl={apiUrl} />
+        ) : activeCategory === "logs_center" ? (
           <EventsPanel apiUrl={apiUrl} />
         ) : activeCategory === "moderation_center" ? (
           <ModerationPanel apiUrl={apiUrl} />

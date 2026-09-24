@@ -933,7 +933,134 @@ p {
   overflow-wrap: anywhere;
 }
 
+
+.economyCenter {
+  display: grid;
+  gap: 14px;
+}
+
+.centerTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.activeTab {
+  border-color: rgba(87, 242, 135, .45);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.economyStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.economyStat {
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.economyStat > span,
+.economyStat small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.economyStat strong {
+  font-size: 20px;
+  overflow-wrap: anywhere;
+}
+
+.economyBlock {
+  margin-top: 0;
+}
+
+.economyColumns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.economyForm {
+  display: grid;
+  gap: 9px;
+}
+
+.economyTextarea {
+  min-height: 90px;
+  padding-top: 10px;
+  resize: vertical;
+}
+
+.economyCheck {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.dangerCheck {
+  color: #f39aa2;
+}
+
+.economyItemList {
+  display: grid;
+  gap: 8px;
+}
+
+.economyItemRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel-soft);
+}
+
+.economyItemRow > div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.economyItemRow strong {
+  font-size: 13px;
+}
+
+.economyItemRow span {
+  color: var(--muted);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.economyTransactionAmount {
+  display: grid;
+  gap: 3px;
+  text-align: right;
+}
+
+.economyTransactionAmount strong {
+  font-size: 13px;
+}
+
+.economyTransactionAmount time {
+  color: var(--muted);
+  font-size: 11px;
+}
+
 @media (max-width: 1060px) {
+  .economyStats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .moduleGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -968,6 +1095,10 @@ p {
 }
 
 @media (max-width: 760px) {
+  .economyColumns {
+    grid-template-columns: 1fr;
+  }
+
   .dashboard {
     display: block;
   }
@@ -1010,6 +1141,19 @@ p {
 }
 
 @media (max-width: 500px) {
+  .economyStats {
+    grid-template-columns: 1fr;
+  }
+
+  .economyItemRow {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .economyTransactionAmount {
+    text-align: left;
+  }
+
   .loginCard {
     padding: 28px 22px;
   }

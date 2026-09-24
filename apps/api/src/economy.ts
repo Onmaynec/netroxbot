@@ -291,8 +291,12 @@ export function registerEconomyRoutes(
       price: BigInt(body.data.price),
       stock: body.data.stock ?? null,
       maxPerUser: body.data.maxPerUser ?? null,
-      tradable: body.data.tradable,
-      giftable: body.data.giftable,
+      ...(body.data.tradable !== undefined
+        ? { tradable: body.data.tradable }
+        : {}),
+      ...(body.data.giftable !== undefined
+        ? { giftable: body.data.giftable }
+        : {}),
       createdBy: session.discordId
     });
 
