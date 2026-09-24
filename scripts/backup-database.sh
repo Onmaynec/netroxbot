@@ -122,7 +122,7 @@ run_backup() {
   if ! pg_restore --list "$temp_file" >/dev/null 2>&1; then
     echo "[NetroxBot Backup] Проверка архива не пройдена."
     rm -f "$temp_file"
-    record_failure "$file_name"
+    record_failure "$backup_id" "$file_name"
     rm -rf "$BACKUP_DIR/.backup-lock"
     trap - EXIT INT TERM
     return 1
