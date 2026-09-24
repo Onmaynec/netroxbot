@@ -1,0 +1,36 @@
+name: Проверка проекта
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  check:
+    name: TypeScript и сборка
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Забрать исходники
+        uses: actions/checkout@v4
+
+      - name: Установить pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.25.0
+
+      - name: Установить Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.21.0
+          cache: pnpm
+
+      - name: Установить зависимости
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Проверить TypeScript
+        run: pnpm typecheck
+
+      - name: Собрать проект
+        run: pnpm build
