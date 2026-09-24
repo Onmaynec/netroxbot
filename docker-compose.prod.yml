@@ -69,6 +69,24 @@ services:
       timeout: 5s
       retries: 10
 
+  backup:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_HOST: postgres
+      BACKUP_DIR: /backups
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+    volumes:
+      - "${BACKUP_STORAGE:-backup_data}:/backups"
+      - ./scripts/backup-database.sh:/scripts/backup-database.sh:ro
+      - ./scripts/restore-latest-backup.sh:/scripts/restore-latest-backup.sh:ro
+    depends_on:
+      api:
+        condition: service_healthy
+    command: ["sh", "/scripts/backup-database.sh", "loop"]
+
   redis:
     image: redis:8-alpine
     restart: unless-stopped
@@ -115,5 +133,6 @@ services:
 
 volumes:
   postgres_data:
+  backup_data:
   redis_data:
   ollama_data:

@@ -76,6 +76,40 @@ model AuditLog {
   @@index([guildId, createdAt])
 }
 
+model ServerEvent {
+  id         String   @id @default(cuid())
+  guildId    String
+  category   String
+  eventType  String
+  actorId    String?
+  targetType String?
+  targetId   String?
+  channelId  String?
+  messageId  String?
+  summary    String
+  payload    Json?
+  occurredAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@index([guildId, occurredAt])
+  @@index([guildId, category, occurredAt])
+  @@index([guildId, eventType, occurredAt])
+  @@index([guildId, targetId, occurredAt])
+}
+
+model BackupRecord {
+  id          String   @id @default(cuid())
+  fileName    String   @unique
+  status      String
+  sizeBytes   BigInt?
+  checksum    String?
+  error       String?
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+
+  @@index([status, startedAt])
+}
+
 model ModerationCounter {
   guildId        String @id
   nextCaseNumber Int    @default(1)

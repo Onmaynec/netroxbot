@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ModerationPanel from "./moderation-panel";
+import EventsPanel from "./events-panel";
 
 type SessionUser = {
   discordId: string;
@@ -455,6 +456,18 @@ export default function DashboardClient({ apiUrl }: DashboardProps) {
           ))}
 
           <button
+            className={activeCategory === "logs_center" ? "navItem active" : "navItem"}
+            onClick={() => selectCategory("logs_center")}
+            type="button"
+          >
+            <span>🗄️</span>
+            <div>
+              <strong>Логи и backup</strong>
+              <small>ServerEvent и резервные копии</small>
+            </div>
+          </button>
+
+          <button
             className={activeCategory === "moderation_center" ? "navItem active" : "navItem"}
             onClick={() => selectCategory("moderation_center")}
             type="button"
@@ -511,9 +524,11 @@ export default function DashboardClient({ apiUrl }: DashboardProps) {
             <h1>
               {selectedModule
                 ? `${selectedModule.emoji} ${selectedModule.title}`
-                : activeCategory === "moderation_center"
-                  ? "Moderation Center"
-                  : activeCategory === "admins"
+                : activeCategory === "logs_center"
+                  ? "Логи и backup"
+                  : activeCategory === "moderation_center"
+                    ? "Moderation Center"
+                    : activeCategory === "admins"
                     ? "Доступ к панели"
                     : activeCategory === "audit"
                       ? "Журнал действий"
@@ -529,7 +544,9 @@ export default function DashboardClient({ apiUrl }: DashboardProps) {
 
         {message && <div className="notice">{message}</div>}
 
-        {activeCategory === "moderation_center" ? (
+        {activeCategory === "logs_center" ? (
+          <EventsPanel apiUrl={apiUrl} />
+        ) : activeCategory === "moderation_center" ? (
           <ModerationPanel apiUrl={apiUrl} />
         ) : activeCategory === "admins" && user.level === "SUPERADMIN" ? (
           <section className="panel">

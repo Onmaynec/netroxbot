@@ -10,6 +10,7 @@ import {
   Interaction,
   MessageFlags,
   ModalBuilder,
+  Partials,
   REST,
   RoleSelectMenuBuilder,
   Routes,
@@ -36,6 +37,7 @@ import {
   startModerationScheduler
 } from "./moderation.js";
 import { handleAutomodMessage } from "./automod.js";
+import { emitServerLog, registerServerLogging } from "./logging.js";
 
 const env = z.object({
   DISCORD_TOKEN: z.string().min(1),
@@ -68,14 +70,18 @@ const client = new Client({
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildVoiceStates,
     GatewayIntentBits.GuildInvites,
-    GatewayIntentBits.GuildPresences
-  ]
+    GatewayIntentBits.GuildPresences,
+    GatewayIntentBits.GuildWebhooks
+  ],
+  partials: [Partials.Message, Partials.Channel, Partials.GuildMember]
 });
 
 const moderationRuntime = {
   client,
   guildId: env.DISCORD_GUILD_ID
 };
+
+registerServerLogging(client, env.DISCORD_GUILD_ID);
 
 async function canManageSettings(userId: string): Promise<boolean> {
   if (userId === env.SUPERADMIN_DISCORD_ID) {
@@ -206,6 +212,24 @@ async function saveModuleSetting(
       }
     })
   ]);
+
+  await emitServerLog(client, env.DISCORD_GUILD_ID, {
+    category: "settings",
+    eventType: "settings.module.parameter",
+    summary:
+      "Изменён параметр " +
+      field.label +
+      " модуля " +
+      module.title +
+      " через Discord.",
+    actorId,
+    targetType: "module",
+    targetId: moduleKey,
+    payload: {
+      field: fieldKey,
+      value
+    }
+  });
 
   return updated;
 }
@@ -921,6 +945,22 @@ client.on("interactionCreate", async (interaction) => {
             }
           })
         ]);
+
+        await emitServerLog(client, env.DISCORD_GUILD_ID, {
+          category: "settings",
+          eventType: "settings.module.toggle",
+          summary:
+            "Модуль " +
+            module.title +
+            (nextEnabled ? " включён" : " выключен") +
+            " через Discord.",
+          actorId: interaction.user.id,
+          targetType: "module",
+          targetId: module.key,
+          payload: {
+            enabled: nextEnabled
+          }
+        });
 
         const view = await buildModuleView(module.key);
 

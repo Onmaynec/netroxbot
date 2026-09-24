@@ -8,6 +8,7 @@ import { registerAuthRoutes } from "./auth.js";
 import { registerSettingsRoutes } from "./settings.js";
 import { registerDiscordResourceRoutes } from "./discord.js";
 import { registerModerationRoutes } from "./moderation.js";
+import { registerEventsRoutes } from "./events.js";
 
 const env = z.object({
   API_PORT: z.coerce.number().default(3001),
@@ -49,7 +50,8 @@ await registerAuthRoutes(app, redis, {
 });
 
 registerSettingsRoutes(app, redis, {
-  guildId: env.DISCORD_GUILD_ID
+  guildId: env.DISCORD_GUILD_ID,
+  botToken: env.DISCORD_TOKEN
 });
 
 registerDiscordResourceRoutes(app, redis, {
@@ -58,6 +60,10 @@ registerDiscordResourceRoutes(app, redis, {
 });
 
 registerModerationRoutes(app, redis, {
+  guildId: env.DISCORD_GUILD_ID
+});
+
+registerEventsRoutes(app, redis, {
   guildId: env.DISCORD_GUILD_ID
 });
 

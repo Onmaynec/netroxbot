@@ -252,7 +252,43 @@ export const MODULE_SETTING_FIELDS: Partial<
     {
       key: "channelId",
       label: "Основной канал логов",
-      description: "Канал для событий сервера.",
+      description: "Fallback-канал, если для категории не выбран отдельный канал.",
+      kind: "channel"
+    },
+    {
+      key: "messageChannelId",
+      label: "Логи сообщений",
+      description: "Удаление и изменение сообщений.",
+      kind: "channel"
+    },
+    {
+      key: "memberChannelId",
+      label: "Логи участников",
+      description: "Входы, выходы, ники и роли участников.",
+      kind: "channel"
+    },
+    {
+      key: "voiceChannelId",
+      label: "Логи голосовых каналов",
+      description: "Входы, выходы и перемещения между войсами.",
+      kind: "channel"
+    },
+    {
+      key: "serverChannelId",
+      label: "Логи сервера",
+      description: "Каналы, роли, приглашения и webhook.",
+      kind: "channel"
+    },
+    {
+      key: "moderationChannelId",
+      label: "Логи модерации",
+      description: "Moderation-кейсы и автомодерация.",
+      kind: "channel"
+    },
+    {
+      key: "settingsChannelId",
+      label: "Логи настроек",
+      description: "Изменения настроек NetroxBot и административного доступа.",
       kind: "channel"
     },
     {
@@ -263,9 +299,30 @@ export const MODULE_SETTING_FIELDS: Partial<
       defaultValue: true
     },
     {
+      key: "memberLogs",
+      label: "Участники",
+      description: "Логировать входы, выходы, ники и роли.",
+      kind: "boolean",
+      defaultValue: true
+    },
+    {
       key: "voiceLogs",
       label: "Голосовые каналы",
       description: "Логировать входы, выходы и перемещения в голосовых каналах.",
+      kind: "boolean",
+      defaultValue: true
+    },
+    {
+      key: "serverLogs",
+      label: "Структура сервера",
+      description: "Логировать изменения каналов, ролей, приглашений и webhook.",
+      kind: "boolean",
+      defaultValue: true
+    },
+    {
+      key: "storeMessageContent",
+      label: "Хранить текст сообщений",
+      description: "Сохранять старое/удалённое содержимое сообщений в ServerEvent.",
       kind: "boolean",
       defaultValue: true
     }

@@ -18,3 +18,12 @@ export {
 } from "./moderation.js";
 
 export type { ModerationCaseInput } from "./moderation.js";
+
+export {
+  listAuditEvents,
+  listBackupRecords,
+  listServerEvents,
+  recordServerEvent
+} from "./events.js";
+
+export type { ServerEventInput } from "./events.js";

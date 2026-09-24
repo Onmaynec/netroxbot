@@ -8,7 +8,7 @@ on:
 
 jobs:
   check:
-    name: TypeScript, Prisma, PostgreSQL и сборка
+    name: TypeScript, Prisma, PostgreSQL, backup и сборка
     runs-on: ubuntu-latest
 
     env:
@@ -63,8 +63,50 @@ jobs:
       - name: Проверить bootstrap базы
         run: pnpm db:bootstrap
 
+      - name: Проверить shell-скрипты
+        run: |
+          sh -n scripts/backup-database.sh
+          sh -n scripts/restore-latest-backup.sh
+          sh -n scripts/start-service.sh
+
+      - name: Создать и проверить резервную копию
+        run: |
+          mkdir -p .ci-backups
+          docker run --rm --network host \
+            -e POSTGRES_HOST=127.0.0.1 \
+            -e POSTGRES_PORT=5432 \
+            -e POSTGRES_USER=netrox_ci \
+            -e POSTGRES_PASSWORD=netrox_ci \
+            -e POSTGRES_DB=netroxbot_ci \
+            -e BACKUP_DIR=/backups \
+            -v "$PWD/scripts:/scripts:ro" \
+            -v "$PWD/.ci-backups:/backups" \
+            postgres:17-alpine \
+            sh /scripts/backup-database.sh once
+
+          test -n "$(find .ci-backups -maxdepth 1 -name 'netroxbot-*.dump' -print -quit)"
+          test -n "$(find .ci-backups -maxdepth 1 -name 'netroxbot-*.dump.sha256' -print -quit)"
+
+      - name: Проверить восстановление из backup
+        run: |
+          docker run --rm --network host \
+            -e POSTGRES_HOST=127.0.0.1 \
+            -e POSTGRES_PORT=5432 \
+            -e POSTGRES_USER=netrox_ci \
+            -e POSTGRES_PASSWORD=netrox_ci \
+            -e POSTGRES_DB=netroxbot_ci \
+            -e BACKUP_DIR=/backups \
+            -e CONFIRM_RESTORE=YES \
+            -v "$PWD/scripts:/scripts:ro" \
+            -v "$PWD/.ci-backups:/backups" \
+            postgres:17-alpine \
+            sh /scripts/restore-latest-backup.sh
+
+          pnpm db:deploy
+          pnpm db:bootstrap
+
       - name: Проверить Docker Compose
         run: |
           cp .env.example .env
-          docker compose -f docker-compose.yml config >/dev/null
+          docker compose --profile backup -f docker-compose.yml config >/dev/null
           docker compose -f docker-compose.prod.yml config >/dev/null
