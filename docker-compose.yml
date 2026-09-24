@@ -1,23 +1,12 @@
-services:
-  bot:
-    build:
-      context: .
-      dockerfile: docker/bot.Dockerfile
-    restart: unless-stopped
-    env_file: .env
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_started
-      lavalink:
-        condition: service_started
+name: netroxbot
 
+services:
   api:
     build:
       context: .
       dockerfile: docker/api.Dockerfile
     restart: unless-stopped
+    init: true
     env_file: .env
     ports:
       - "3001:3001"
@@ -25,6 +14,31 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3001/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 25s
+
+  bot:
+    build:
+      context: .
+      dockerfile: docker/bot.Dockerfile
+    restart: unless-stopped
+    init: true
+    env_file: .env
+    depends_on:
+      api:
+        condition: service_healthy
+      lavalink:
         condition: service_started
 
   dashboard:
@@ -32,12 +46,13 @@ services:
       context: .
       dockerfile: docker/dashboard.Dockerfile
     restart: unless-stopped
+    init: true
     env_file: .env
     ports:
       - "3000:3000"
     depends_on:
       api:
-        condition: service_started
+        condition: service_healthy
 
   postgres:
     image: postgres:17-alpine
@@ -60,6 +75,11 @@ services:
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
 
   lavalink:
     image: ghcr.io/lavalink-devs/lavalink:4
