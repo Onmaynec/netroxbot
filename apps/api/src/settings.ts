@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Redis } from "ioredis";
 import { z } from "zod";
-import { MODULES, SETTINGS_CATEGORIES, getModule } from "@netrox/core";
+import { MODULES, SETTINGS_CATEGORIES, getModule, getModuleSettingFields } from "@netrox/core";
 import { prisma } from "@netrox/database";
 import { requireSession, type ApiSession } from "./auth.js";
 
@@ -14,7 +14,15 @@ const moduleParamsSchema = z.object({
 });
 
 const modulePatchSchema = z.object({
-  enabled: z.boolean()
+  enabled: z.boolean().optional(),
+  settings: z.record(z.string(), z.unknown()).optional()
+}).refine(
+  (value) => value.enabled !== undefined || value.settings !== undefined,
+  { message: "Нет изменений для сохранения." }
+);
+
+const confirmBodySchema = z.object({
+  confirm: z.literal(true)
 });
 
 const adminBodySchema = z.object({
@@ -74,7 +82,8 @@ export function registerSettingsRoutes(
         return {
           ...module,
           enabled: current?.enabled ?? module.defaultEnabled,
-          settings: current?.settings ?? {}
+          settings: current?.settings ?? {},
+          fields: getModuleSettingFields(module.key)
         };
       })
     };
@@ -108,6 +117,34 @@ export function registerSettingsRoutes(
       });
     }
 
+    const current = await prisma.moduleConfig.findUnique({
+      where: {
+        guildId_moduleKey: {
+          guildId: config.guildId,
+          moduleKey: definition.key
+        }
+      }
+    });
+
+    const currentSettings =
+      current?.settings &&
+      typeof current.settings === "object" &&
+      !Array.isArray(current.settings)
+        ? (current.settings as Record<string, unknown>)
+        : {};
+
+    const nextSettings = body.data.settings
+      ? JSON.parse(
+          JSON.stringify({
+            ...currentSettings,
+            ...body.data.settings
+          })
+        )
+      : currentSettings;
+
+    const nextEnabled =
+      body.data.enabled ?? current?.enabled ?? definition.defaultEnabled;
+
     const moduleConfig = await prisma.moduleConfig.upsert({
       where: {
         guildId_moduleKey: {
@@ -116,13 +153,14 @@ export function registerSettingsRoutes(
         }
       },
       update: {
-        enabled: body.data.enabled
+        enabled: nextEnabled,
+        settings: nextSettings
       },
       create: {
         guildId: config.guildId,
         moduleKey: definition.key,
-        enabled: body.data.enabled,
-        settings: {}
+        enabled: nextEnabled,
+        settings: nextSettings
       }
     });
 
@@ -130,11 +168,16 @@ export function registerSettingsRoutes(
       data: {
         guildId: config.guildId,
         actorId: session.discordId,
-        action: "settings.module.toggle",
+        action: body.data.enabled !== undefined
+          ? "settings.module.update"
+          : "settings.module.parameters",
         targetType: "module",
         targetId: definition.key,
         payload: {
           enabled: moduleConfig.enabled,
+          changedSettings: body.data.settings
+            ? Object.keys(body.data.settings)
+            : [],
           source: "dashboard"
         }
       }
@@ -145,7 +188,8 @@ export function registerSettingsRoutes(
       module: {
         ...definition,
         enabled: moduleConfig.enabled,
-        settings: moduleConfig.settings
+        settings: moduleConfig.settings,
+        fields: getModuleSettingFields(definition.key)
       }
     };
   });
@@ -245,12 +289,21 @@ export function registerSettingsRoutes(
     }
 
     const params = adminParamsSchema.safeParse(request.params);
+    const confirmation = confirmBodySchema.safeParse(request.body);
 
     if (!params.success) {
       return reply.code(400).send({
         ok: false,
         error: "INVALID_DISCORD_ID",
         message: "Укажи корректный Discord ID."
+      });
+    }
+
+    if (!confirmation.success) {
+      return reply.code(400).send({
+        ok: false,
+        error: "CONFIRMATION_REQUIRED",
+        message: "Подтверди отзыв доступа перед выполнением."
       });
     }
 
