@@ -7,6 +7,7 @@ import { prisma } from "@netrox/database";
 import { registerAuthRoutes } from "./auth.js";
 import { registerSettingsRoutes } from "./settings.js";
 import { registerDiscordResourceRoutes } from "./discord.js";
+import { registerModerationRoutes } from "./moderation.js";
 
 const env = z.object({
   API_PORT: z.coerce.number().default(3001),
@@ -54,6 +55,10 @@ registerSettingsRoutes(app, redis, {
 registerDiscordResourceRoutes(app, redis, {
   guildId: env.DISCORD_GUILD_ID,
   botToken: env.DISCORD_TOKEN
+});
+
+registerModerationRoutes(app, redis, {
+  guildId: env.DISCORD_GUILD_ID
 });
 
 async function dependencyStatus() {
