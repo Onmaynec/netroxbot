@@ -16,7 +16,9 @@
     "ioredis": "6.0.0",
     "zod": "^4.0.0",
     "@netrox/core": "workspace:*",
-    "@fastify/cors": "11.3.0"
+    "@fastify/cors": "11.3.0",
+    "@fastify/cookie": "11.1.2",
+    "@fastify/oauth2": "8.3.0"
   },
   "devDependencies": {
     "tsx": "^4.20.0",
