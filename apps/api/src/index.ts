@@ -1,12 +1,21 @@
 import "dotenv/config";
+import cors from "@fastify/cors";
 import Fastify from "fastify";
 import { Redis } from "ioredis";
 import { z } from "zod";
 import { prisma } from "@netrox/database";
+import { registerAuthRoutes } from "./auth.js";
+import { registerSettingsRoutes } from "./settings.js";
 
 const env = z.object({
   API_PORT: z.coerce.number().default(3001),
-  REDIS_URL: z.string().url()
+  REDIS_URL: z.string().url(),
+  DISCORD_GUILD_ID: z.string().min(1),
+  DISCORD_OAUTH_CLIENT_ID: z.string().min(1),
+  DISCORD_OAUTH_CLIENT_SECRET: z.string().min(1),
+  DISCORD_OAUTH_REDIRECT_URI: z.string().url(),
+  PUBLIC_APP_URL: z.string().url(),
+  SESSION_SECRET: z.string().min(32)
 }).parse(process.env);
 
 const app = Fastify({ logger: true });
@@ -19,6 +28,25 @@ const redis = new Redis(env.REDIS_URL, {
 
 redis.on("error", (error) => {
   app.log.warn({ error }, "Redis временно недоступен");
+});
+
+await app.register(cors, {
+  origin: env.PUBLIC_APP_URL,
+  credentials: true,
+  methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"]
+});
+
+await registerAuthRoutes(app, redis, {
+  clientId: env.DISCORD_OAUTH_CLIENT_ID,
+  clientSecret: env.DISCORD_OAUTH_CLIENT_SECRET,
+  redirectUri: env.DISCORD_OAUTH_REDIRECT_URI,
+  publicAppUrl: env.PUBLIC_APP_URL,
+  sessionSecret: env.SESSION_SECRET,
+  guildId: env.DISCORD_GUILD_ID
+});
+
+registerSettingsRoutes(app, redis, {
+  guildId: env.DISCORD_GUILD_ID
 });
 
 async function dependencyStatus() {
