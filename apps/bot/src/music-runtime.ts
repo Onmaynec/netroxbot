@@ -4,6 +4,7 @@ import { Connectors } from "shoukaku";
 import {
   clearMusicQueue,
   getMusicPlayerState,
+  loadMusicQueue,
   persistMusicQueue,
   recordMusicHistory,
   saveMusicPlayerState,
@@ -19,6 +20,7 @@ export type MusicRuntime = {
   voteSkips: Map<string, { trackKey: string; voters: Set<string> }>;
   emptyVoiceTimers: Map<string, NodeJS.Timeout>;
   idleTimers: Map<string, NodeJS.Timeout>;
+  lastPositionPersistAt: Map<string, number>;
 };
 
 export type MusicSettings = {
@@ -297,6 +299,139 @@ function registerEmptyVoiceLifecycle(runtime: MusicRuntime) {
   });
 }
 
+function storedSourcePrefix(sourceName: string) {
+  if (sourceName === "yandexmusic") return "ymsearch:";
+  if (sourceName === "spotify") return "spsearch:";
+  if (sourceName === "soundcloud") return "scsearch:";
+  if (sourceName === "youtube") return "ytsearch:";
+  return "ytmsearch:";
+}
+
+async function resolveStoredTrack(
+  runtime: MusicRuntime,
+  stored: {
+    sourceName: string;
+    title: string;
+    author: string;
+    uri: string | null;
+    requesterId?: string;
+  }
+) {
+  const requester =
+    stored.requesterId && stored.requesterId !== "unknown"
+      ? await runtime.client.users.fetch(stored.requesterId).catch(() => runtime.client.user)
+      : runtime.client.user;
+
+  const query = stored.uri ?? stored.author + " - " + stored.title;
+  const result = await runtime.kazagumo
+    .search(query, {
+      requester,
+      source: storedSourcePrefix(stored.sourceName)
+    })
+    .catch(() => null);
+
+  return result?.tracks[0] ?? null;
+}
+
+export async function restorePersistentMusicPlayer(runtime: MusicRuntime) {
+  if (runtime.kazagumo.getPlayer(runtime.guildId)) {
+    return;
+  }
+
+  const state = await getMusicPlayerState(runtime.guildId);
+
+  if (!state?.stayConnected || !state.voiceChannelId) {
+    return;
+  }
+
+  const guild = await runtime.client.guilds.fetch(runtime.guildId).catch(() => null);
+
+  if (!guild) {
+    return;
+  }
+
+  const voice = await guild.channels.fetch(state.voiceChannelId).catch(() => null);
+
+  if (!voice?.isVoiceBased()) {
+    await saveMusicPlayerState({
+      guildId: runtime.guildId,
+      voiceChannelId: null,
+      stayConnected: false
+    });
+    return;
+  }
+
+  const createOptions = {
+    guildId: runtime.guildId,
+    voiceId: state.voiceChannelId,
+    deaf: true,
+    volume: state.volume,
+    ...(state.textChannelId ? { textId: state.textChannelId } : {})
+  };
+
+  const player = await runtime.kazagumo.createPlayer(createOptions);
+  player.setLoop(
+    state.loopMode === "track" || state.loopMode === "queue"
+      ? state.loopMode
+      : "none"
+  );
+
+  const last = musicRecord(state.lastTrack);
+  const lastTitle = typeof last.title === "string" ? last.title : null;
+  const lastAuthor = typeof last.author === "string" ? last.author : "Неизвестный автор";
+  const lastSource = typeof last.sourceName === "string" ? last.sourceName : "youtube";
+  const lastUri = typeof last.uri === "string" ? last.uri : null;
+
+  if (lastTitle) {
+    const restoredCurrent = await resolveStoredTrack(runtime, {
+      sourceName: lastSource,
+      title: lastTitle,
+      author: lastAuthor,
+      uri: lastUri
+    });
+
+    if (restoredCurrent) {
+      player.queue.add(restoredCurrent);
+    }
+  }
+
+  const savedQueue = await loadMusicQueue(runtime.guildId);
+
+  for (const entry of savedQueue.slice(0, 500)) {
+    const track = await resolveStoredTrack(runtime, {
+      sourceName: entry.sourceName,
+      title: entry.title,
+      author: entry.author,
+      uri: entry.uri,
+      requesterId: entry.requesterId
+    });
+
+    if (track) {
+      player.queue.add(track);
+    }
+  }
+
+  if (player.queue.current) {
+    await player.play();
+
+    const positionMs = Number(state.positionMs);
+
+    if (
+      positionMs > 1000 &&
+      player.queue.current.length &&
+      positionMs < player.queue.current.length
+    ) {
+      await player.seek(Math.floor(positionMs / 1000)).catch(() => undefined);
+    }
+  }
+
+  console.log(
+    "Music 24/7 восстановлен: " +
+      savedQueue.length +
+      " треков в сохранённой очереди."
+  );
+}
+
 export function createMusicRuntime(
   client: Client,
   options: {
@@ -330,11 +465,15 @@ export function createMusicRuntime(
     kazagumo,
     voteSkips: new Map(),
     emptyVoiceTimers: new Map(),
-    idleTimers: new Map()
+    idleTimers: new Map(),
+    lastPositionPersistAt: new Map()
   };
 
   kazagumo.shoukaku.on("ready", (name) => {
     console.log("Lavalink " + name + " подключён.");
+    void restorePersistentMusicPlayer(runtime).catch((error) => {
+      console.error("Не удалось восстановить Music 24/7", error);
+    });
   });
 
   kazagumo.shoukaku.on("error", (name, error) => {
@@ -367,6 +506,7 @@ export function createMusicRuntime(
       voiceChannelId: player.voiceId,
       textChannelId: player.textId ?? null,
       volume: player.volume,
+      positionMs: 0,
       loopMode: player.loop,
       lastTrack: musicTrackData(track) as Record<string, unknown>
     });
@@ -374,6 +514,25 @@ export function createMusicRuntime(
 
   kazagumo.on("queueUpdate", (player) => {
     void persistRuntimeQueue(runtime, player);
+  });
+
+  kazagumo.on("playerUpdate", (player) => {
+    const now = Date.now();
+    const previous = runtime.lastPositionPersistAt.get(player.guildId) ?? 0;
+
+    if (now - previous < 15_000) {
+      return;
+    }
+
+    runtime.lastPositionPersistAt.set(player.guildId, now);
+    void saveMusicPlayerState({
+      guildId: player.guildId,
+      positionMs: player.position,
+      volume: player.volume,
+      loopMode: player.loop,
+      voiceChannelId: player.voiceId,
+      textChannelId: player.textId ?? null
+    });
   });
 
   kazagumo.on("playerEmpty", (player) => {
