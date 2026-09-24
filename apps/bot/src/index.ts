@@ -6,6 +6,7 @@ import {
   Client,
   EmbedBuilder,
   GatewayIntentBits,
+  Interaction,
   MessageFlags,
   REST,
   Routes,
@@ -215,10 +216,7 @@ async function buildModuleView(moduleKey: string) {
   };
 }
 
-async function denySettingsAccess(
-  interaction:
-    | Parameters<NonNullable<Parameters<typeof client.on<"interactionCreate">>[1]>>[0]
-): Promise<void> {
+async function denySettingsAccess(interaction: Interaction): Promise<void> {
   if (!interaction.isRepliable()) {
     return;
   }
