@@ -1,6 +1,6 @@
 {
   "name": "@netrox/bot",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -12,7 +12,9 @@
   "dependencies": {
     "discord.js": "14.27.0",
     "dotenv": "^17.2.0",
-    "zod": "^4.0.0"
+    "zod": "^4.0.0",
+    "@netrox/core": "workspace:*",
+    "@netrox/database": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.20.0",

@@ -1,6 +1,6 @@
 {
   "name": "@netrox/database",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "main": "./dist/src/index.js",
@@ -23,7 +23,8 @@
     "@prisma/client": "7.10.0",
     "@prisma/adapter-pg": "7.10.0",
     "dotenv": "^17.2.0",
-    "pg": "^8.16.0"
+    "pg": "^8.16.0",
+    "@netrox/core": "workspace:*"
   },
   "devDependencies": {
     "@types/pg": "^8.15.0",
