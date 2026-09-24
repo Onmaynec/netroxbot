@@ -24,30 +24,21 @@ export type ModerationCaseInput = {
   evidence?: Record<string, unknown> | null;
 };
 
-async function allocateCaseNumber(
-  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
-  guildId: string
-): Promise<number> {
-  const rows = await tx.$queryRaw<Array<{ caseNumber: number }>>`
-    INSERT INTO "ModerationCounter" ("guildId", "nextCaseNumber")
-    VALUES (${guildId}, 2)
-    ON CONFLICT ("guildId")
-    DO UPDATE SET "nextCaseNumber" = "ModerationCounter"."nextCaseNumber" + 1
-    RETURNING "nextCaseNumber" - 1 AS "caseNumber"
-  `;
-
-  const caseNumber = rows[0]?.caseNumber;
-
-  if (!caseNumber) {
-    throw new Error("Не удалось выделить номер moderation-кейса.");
-  }
-
-  return caseNumber;
-}
-
 export async function createModerationCase(input: ModerationCaseInput) {
   return prisma.$transaction(async (tx) => {
-    const caseNumber = await allocateCaseNumber(tx, input.guildId);
+    const rows = await tx.$queryRaw<Array<{ caseNumber: number }>>`
+      INSERT INTO "ModerationCounter" ("guildId", "nextCaseNumber")
+      VALUES (${input.guildId}, 2)
+      ON CONFLICT ("guildId")
+      DO UPDATE SET "nextCaseNumber" = "ModerationCounter"."nextCaseNumber" + 1
+      RETURNING "nextCaseNumber" - 1 AS "caseNumber"
+    `;
+
+    const caseNumber = rows[0]?.caseNumber;
+
+    if (!caseNumber) {
+      throw new Error("Не удалось выделить номер moderation-кейса.");
+    }
 
     const moderationCase = await tx.moderationCase.create({
       data: {
