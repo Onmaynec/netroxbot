@@ -35,6 +35,7 @@ import {
   moderationCommands,
   startModerationScheduler
 } from "./moderation.js";
+import { handleAutomodMessage } from "./automod.js";
 
 const env = z.object({
   DISCORD_TOKEN: z.string().min(1),
@@ -610,6 +611,14 @@ client.once("ready", async (readyClient) => {
   startModerationScheduler(moderationRuntime);
 
   console.log(`NetroxBot запущен как ${readyClient.user.tag}`);
+});
+
+client.on("messageCreate", async (message) => {
+  try {
+    await handleAutomodMessage(message, moderationRuntime);
+  } catch (error) {
+    console.error("Ошибка автомодерации", error);
+  }
 });
 
 client.on("interactionCreate", async (interaction) => {
