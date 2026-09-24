@@ -10,6 +10,7 @@ import {
   Interaction,
   MessageFlags,
   ModalBuilder,
+  Partials,
   REST,
   RoleSelectMenuBuilder,
   Routes,
@@ -36,6 +37,7 @@ import {
   startModerationScheduler
 } from "./moderation.js";
 import { handleAutomodMessage } from "./automod.js";
+import { registerServerLogging } from "./logging.js";
 
 const env = z.object({
   DISCORD_TOKEN: z.string().min(1),
@@ -68,14 +70,18 @@ const client = new Client({
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildVoiceStates,
     GatewayIntentBits.GuildInvites,
-    GatewayIntentBits.GuildPresences
-  ]
+    GatewayIntentBits.GuildPresences,
+    GatewayIntentBits.GuildWebhooks
+  ],
+  partials: [Partials.Message, Partials.Channel, Partials.GuildMember]
 });
 
 const moderationRuntime = {
   client,
   guildId: env.DISCORD_GUILD_ID
 };
+
+registerServerLogging(client, env.DISCORD_GUILD_ID);
 
 async function canManageSettings(userId: string): Promise<boolean> {
   if (userId === env.SUPERADMIN_DISCORD_ID) {
