@@ -10,8 +10,10 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "fastify": "5.12.5",
+    "@netrox/database": "workspace:*",
     "dotenv": "^17.2.0",
+    "fastify": "5.12.5",
+    "ioredis": "6.0.0",
     "zod": "^4.0.0"
   },
   "devDependencies": {
