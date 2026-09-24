@@ -42,7 +42,7 @@ Production-сборка может сама забирать новые конт
 
 ## Запуск
 
-Подробная инструкция по установке находится в [docs/INSTALL.md](docs/INSTALL.md). Руководство по moderation-кейсам, командам и автомоду — в [docs/MODERATION.md](docs/MODERATION.md). Логи, backup и восстановление описаны в [docs/LOGS_AND_BACKUPS.md](docs/LOGS_AND_BACKUPS.md). Музыкальная система и источники — в [docs/MUSIC.md](docs/MUSIC.md).
+Подробная инструкция по установке находится в [docs/INSTALL.md](docs/INSTALL.md). Руководство по moderation-кейсам, командам и автомоду — в [docs/MODERATION.md](docs/MODERATION.md). Логи, backup и восстановление описаны в [docs/LOGS_AND_BACKUPS.md](docs/LOGS_AND_BACKUPS.md). Музыкальная система и источники — в [docs/MUSIC.md](docs/MUSIC.md). Экономика NetCoin, магазин, кредиты и сезоны — в [docs/ECONOMY.md](docs/ECONOMY.md).
 
 Для локальной разработки достаточно подготовить `.env` из `.env.example` и выполнить:
 
