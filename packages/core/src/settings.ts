@@ -466,29 +466,101 @@ export const MODULE_SETTING_FIELDS: Partial<
   ],
   economy: [
     {
+      key: "dailyReward",
+      label: "Ежедневная награда",
+      description: "Сколько NEC выдавать за /daily.",
+      kind: "number",
+      defaultValue: 150,
+      min: 0,
+      max: 10000000
+    },
+    {
+      key: "dailyCooldownHours",
+      label: "Кулдаун /daily",
+      description: "Через сколько часов можно снова получить ежедневную награду.",
+      kind: "number",
+      defaultValue: 24,
+      min: 1,
+      max: 168
+    },
+    {
+      key: "workRewardMin",
+      label: "Минимум за работу",
+      description: "Минимальная награда команды /work.",
+      kind: "number",
+      defaultValue: 25,
+      min: 0,
+      max: 10000000
+    },
+    {
+      key: "workRewardMax",
+      label: "Максимум за работу",
+      description: "Максимальная награда команды /work.",
+      kind: "number",
+      defaultValue: 80,
+      min: 0,
+      max: 10000000
+    },
+    {
+      key: "workCooldownMinutes",
+      label: "Кулдаун /work",
+      description: "Интервал между работами в минутах.",
+      kind: "number",
+      defaultValue: 60,
+      min: 1,
+      max: 10080
+    },
+    {
       key: "chatReward",
       label: "NEC за активность в чате",
-      description: "Базовая награда за учитываемое сообщение.",
+      description: "Награда за сообщение, прошедшее антифарм-проверку.",
       kind: "number",
       defaultValue: 1,
       min: 0,
       max: 10000
     },
     {
+      key: "chatRewardCooldownSeconds",
+      label: "Антифарм чата",
+      description: "Минимальный интервал между начислениями NEC за сообщения.",
+      kind: "number",
+      defaultValue: 60,
+      min: 5,
+      max: 3600
+    },
+    {
       key: "voiceRewardPerMinute",
-      label: "NEC за минуту в войсе",
-      description: "Базовая награда за активную минуту в голосовом канале.",
+      label: "NEC за активность в войсе",
+      description: "Награда за учитываемый интервал голосовой активности.",
       kind: "number",
       defaultValue: 1,
       min: 0,
       max: 10000
+    },
+    {
+      key: "voiceRewardCooldownSeconds",
+      label: "Интервал награды в войсе",
+      description: "Как часто начислять NEC активному участнику голосового канала.",
+      kind: "number",
+      defaultValue: 60,
+      min: 30,
+      max: 3600
+    },
+    {
+      key: "minimumVoiceMembers",
+      label: "Минимум людей в войсе",
+      description: "Сколько не-ботов должно быть в канале, чтобы начислялась награда.",
+      kind: "number",
+      defaultValue: 2,
+      min: 1,
+      max: 25
     },
     {
       key: "transferFeePercent",
       label: "Комиссия переводов",
-      description: "Комиссия с переводов между пользователями.",
+      description: "Процент комиссии при переводе NEC другому участнику.",
       kind: "number",
-      defaultValue: 0,
+      defaultValue: 2,
       min: 0,
       max: 100
     },
@@ -498,6 +570,47 @@ export const MODULE_SETTING_FIELDS: Partial<
       description: "Разрешить банковские кредиты.",
       kind: "boolean",
       defaultValue: true
+    },
+    {
+      key: "maxLoanAmount",
+      label: "Максимальный кредит",
+      description: "Максимальная сумма одного кредита в NEC.",
+      kind: "number",
+      defaultValue: 5000,
+      min: 0,
+      max: 1000000000
+    },
+    {
+      key: "loanInterestPercent",
+      label: "Процент кредита",
+      description: "Фиксированный процент, добавляемый к долгу при выдаче кредита.",
+      kind: "number",
+      defaultValue: 10,
+      min: 0,
+      max: 100
+    },
+    {
+      key: "loanDueDays",
+      label: "Срок кредита",
+      description: "Через сколько дней кредит считается просроченным.",
+      kind: "number",
+      defaultValue: 14,
+      min: 1,
+      max: 365
+    },
+    {
+      key: "roleSalaryEnabled",
+      label: "Зарплаты за роли",
+      description: "Разрешить периодические выплаты по настроенным ролям.",
+      kind: "boolean",
+      defaultValue: true
+    },
+    {
+      key: "seasonResetBalances",
+      label: "Сброс балансов в новом сезоне",
+      description: "Сбрасывать кошелёк и банк при активации нового сезона.",
+      kind: "boolean",
+      defaultValue: false
     }
   ],
   market: [
