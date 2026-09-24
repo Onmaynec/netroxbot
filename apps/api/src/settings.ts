@@ -4,9 +4,11 @@ import { z } from "zod";
 import { MODULES, SETTINGS_CATEGORIES, getModule, getModuleSettingFields } from "@netrox/core";
 import { prisma } from "@netrox/database";
 import { requireSession, type ApiSession } from "./auth.js";
+import { recordSettingsEvent } from "./settings-log.js";
 
 export type SettingsConfig = {
   guildId: string;
+  botToken: string;
 };
 
 const moduleParamsSchema = z.object({
@@ -183,6 +185,28 @@ export function registerSettingsRoutes(
       }
     });
 
+    await recordSettingsEvent({
+      guildId: config.guildId,
+      botToken: config.botToken,
+      eventType:
+        body.data.enabled !== undefined
+          ? "settings.module.update"
+          : "settings.module.parameters",
+      summary:
+        "Изменены настройки модуля " +
+        definition.title +
+        " через веб-панель.",
+      actorId: session.discordId,
+      targetType: "module",
+      targetId: definition.key,
+      payload: {
+        enabled: moduleConfig.enabled,
+        changedSettings: body.data.settings
+          ? Object.keys(body.data.settings)
+          : []
+      }
+    });
+
     return {
       ok: true,
       module: {
@@ -271,6 +295,19 @@ export function registerSettingsRoutes(
       }
     });
 
+    await recordSettingsEvent({
+      guildId: config.guildId,
+      botToken: config.botToken,
+      eventType: "admin.grant",
+      summary: "Выдан доступ администратора NetroxBot.",
+      actorId: session.discordId,
+      targetType: "admin",
+      targetId: admin.discordId,
+      payload: {
+        level: admin.level
+      }
+    });
+
     return {
       ok: true,
       admin: {
@@ -343,6 +380,16 @@ export function registerSettingsRoutes(
           source: "dashboard"
         }
       }
+    });
+
+    await recordSettingsEvent({
+      guildId: config.guildId,
+      botToken: config.botToken,
+      eventType: "admin.revoke",
+      summary: "Отозван доступ администратора NetroxBot.",
+      actorId: session.discordId,
+      targetType: "admin",
+      targetId: target.discordId
     });
 
     return {
