@@ -266,6 +266,13 @@ export default function EventsPanel({ apiUrl }: Props) {
                     {" • "}
                     channel {compactId(event.channelId)}
                   </small>
+
+                  {event.payload !== null && event.payload !== undefined && (
+                    <details className="eventDetails">
+                      <summary>Подробности события</summary>
+                      <pre>{JSON.stringify(event.payload, null, 2)}</pre>
+                    </details>
+                  )}
                 </div>
 
                 <time>
