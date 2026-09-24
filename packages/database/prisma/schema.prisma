@@ -19,6 +19,11 @@ enum PunishmentType {
   KICK
   BAN
   TEMP_BAN
+  UNWARN
+  CLEAR
+  SLOWMODE
+  LOCK
+  UNLOCK
 }
 
 enum PunishmentStatus {
@@ -71,66 +76,96 @@ model AuditLog {
   @@index([guildId, createdAt])
 }
 
-model Punishment {
-  id          String           @id @default(cuid())
-  caseNumber  Int
-  guildId     String
-  userId      String
-  moderatorId String
-  type        PunishmentType
-  status      PunishmentStatus @default(ACTIVE)
-  reason      String
-  evidence    Json?
-  expiresAt   DateTime?
-  cancelledBy String?
-  cancelledAt DateTime?
-  createdAt   DateTime         @default(now())
+model ModerationCounter {
+  guildId        String @id
+  nextCaseNumber Int    @default(1)
+}
+
+model ModerationCase {
+  id              String           @id @default(cuid())
+  caseNumber      Int
+  guildId         String
+  targetUserId    String?          @map("userId")
+  targetChannelId String?          @map("channelId")
+  moderatorId     String
+  type            PunishmentType
+  status          PunishmentStatus @default(ACTIVE)
+  reason          String
+  evidence        Json?
+  durationSeconds Int?
+  expiresAt       DateTime?
+  dmDelivered     Boolean?
+  cancelledBy     String?
+  cancelledAt     DateTime?
+  createdAt       DateTime         @default(now())
+  appeals         Appeal[]
 
   @@unique([guildId, caseNumber])
-  @@index([guildId, userId])
+  @@index([guildId, targetUserId])
+  @@index([guildId, targetChannelId])
+  @@index([guildId, moderatorId, createdAt])
+  @@index([guildId, status, expiresAt])
+  @@map("Punishment")
 }
 
 model Appeal {
-  id           String   @id @default(cuid())
+  id           String         @id @default(cuid())
   guildId      String
-  punishmentId String
+  caseId       String         @map("punishmentId")
   userId       String
   text         String
-  status       String   @default("PENDING")
+  status       String         @default("PENDING")
   reviewerId   String?
   reviewNote   String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  case         ModerationCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
 
   @@index([guildId, userId])
+  @@index([caseId, status])
+}
+
+model AutomodEvent {
+  id        String   @id @default(cuid())
+  guildId   String
+  userId    String
+  channelId String
+  messageId String?
+  ruleKey   String
+  action    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([guildId, userId, createdAt])
+  @@index([guildId, ruleKey, createdAt])
 }
 
 model UserProfile {
-  id          String   @id @default(cuid())
-  guildId     String
-  userId      String
-  xp          BigInt   @default(0)
-  level       Int      @default(1)
-  reputation  Int      @default(0)
-  messages    BigInt   @default(0)
-  voiceSeconds BigInt  @default(0)
-  bio         String?
-  links       Json?
-  cosmetics   Json?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(cuid())
+  guildId      String
+  userId       String
+  xp           BigInt   @default(0)
+  level        Int      @default(1)
+  reputation   Int      @default(0)
+  messages     BigInt   @default(0)
+  voiceSeconds BigInt   @default(0)
+  bio          String?
+  links        Json?
+  cosmetics    Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@unique([guildId, userId])
 }
 
 model EconomyAccount {
-  id          String   @id @default(cuid())
-  guildId     String
-  userId      String
-  wallet      BigInt   @default(0)
-  bank        BigInt   @default(0)
-  seasonId    String?
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  guildId   String
+  userId    String
+  wallet    BigInt   @default(0)
+  bank      BigInt   @default(0)
+  seasonId  String?
+  updatedAt DateTime @updatedAt
 
   @@unique([guildId, userId])
 }
