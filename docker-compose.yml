@@ -101,7 +101,7 @@ services:
       retries: 10
 
   lavalink:
-    image: ghcr.io/lavalink-devs/lavalink:4
+    image: ghcr.io/lavalink-devs/lavalink:4.2.2
     restart: unless-stopped
     environment:
       _JAVA_OPTIONS: "-Xmx1G"
