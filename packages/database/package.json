@@ -17,7 +17,8 @@
     "migrate:deploy": "prisma migrate deploy",
     "bootstrap": "node dist/src/bootstrap.js",
     "typecheck": "prisma generate && tsc -p tsconfig.json --noEmit",
-    "build": "prisma generate && tsc -p tsconfig.json"
+    "build": "prisma generate && tsc -p tsconfig.json",
+    "smoke:economy": "node dist/src/economy-smoke.js"
   },
   "dependencies": {
     "@prisma/client": "7.10.0",

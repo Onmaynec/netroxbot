@@ -60,6 +60,9 @@ jobs:
       - name: Собрать проект
         run: pnpm build
 
+      - name: Проверить экономику на PostgreSQL
+        run: pnpm --filter @netrox/database smoke:economy
+
       - name: Проверить bootstrap базы
         run: pnpm db:bootstrap
 
