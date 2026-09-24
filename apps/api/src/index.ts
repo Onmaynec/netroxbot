@@ -12,11 +12,13 @@ const env = z.object({
 const app = Fastify({ logger: true });
 
 const redis = new Redis(env.REDIS_URL, {
-  lazyConnect: true,
   connectTimeout: 1500,
   maxRetriesPerRequest: 1,
-  enableOfflineQueue: false,
   retryStrategy: (attempt) => Math.min(attempt * 250, 2000)
+});
+
+redis.on("error", (error) => {
+  app.log.warn({ error }, "Redis временно недоступен");
 });
 
 async function dependencyStatus() {
