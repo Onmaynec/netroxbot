@@ -81,5 +81,42 @@ pg_restore \
   --dbname="$POSTGRES_DB" \
   "$file"
 
+restored_file_name="$(basename "$file")"
+restored_size="$(stat -c '%s' "$file")"
+restore_id="restore_$(date -u +%Y%m%dT%H%M%SZ)"
+
+psql -v ON_ERROR_STOP=1 \
+  -v restore_id="$restore_id" \
+  -v file_name="$restored_file_name" \
+  -v checksum="$actual" \
+  -v size_bytes="$restored_size" \
+  <<'SQL'
+INSERT INTO "BackupRecord" (
+  "id",
+  "fileName",
+  "status",
+  "sizeBytes",
+  "checksum",
+  "startedAt",
+  "completedAt"
+)
+VALUES (
+  :'restore_id',
+  :'file_name',
+  'RESTORED',
+  :'size_bytes'::bigint,
+  :'checksum',
+  CURRENT_TIMESTAMP,
+  CURRENT_TIMESTAMP
+)
+ON CONFLICT ("fileName")
+DO UPDATE SET
+  "status" = 'RESTORED',
+  "sizeBytes" = EXCLUDED."sizeBytes",
+  "checksum" = EXCLUDED."checksum",
+  "completedAt" = CURRENT_TIMESTAMP,
+  "error" = NULL;
+SQL
+
 echo "[NetroxBot Restore] Восстановление завершено."
 echo "[NetroxBot Restore] Теперь можно снова запустить api, bot и dashboard."
