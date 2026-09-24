@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import ModerationPanel from "./moderation-panel";
 import EventsPanel from "./events-panel";
 import EconomyPanel from "./economy-panel";
+import TradePanel from "./trade-panel";
 
 type SessionUser = {
   discordId: string;
@@ -469,6 +470,18 @@ export default function DashboardClient({ apiUrl }: DashboardProps) {
           </button>
 
           <button
+            className={activeCategory === "trade_center" ? "navItem active" : "navItem"}
+            onClick={() => selectCategory("trade_center")}
+            type="button"
+          >
+            <span>💎</span>
+            <div>
+              <strong>Trade Center</strong>
+              <small>Рынок, аукционы, игры и escrow</small>
+            </div>
+          </button>
+
+          <button
             className={activeCategory === "logs_center" ? "navItem active" : "navItem"}
             onClick={() => selectCategory("logs_center")}
             type="button"
@@ -539,6 +552,8 @@ export default function DashboardClient({ apiUrl }: DashboardProps) {
                 ? `${selectedModule.emoji} ${selectedModule.title}`
                 : activeCategory === "economy_center"
                   ? "Economy Center"
+                  : activeCategory === "trade_center"
+                    ? "Trade Center"
                   : activeCategory === "logs_center"
                   ? "Логи и backup"
                   : activeCategory === "moderation_center"
@@ -561,6 +576,11 @@ export default function DashboardClient({ apiUrl }: DashboardProps) {
 
         {activeCategory === "economy_center" ? (
           <EconomyPanel
+            apiUrl={apiUrl}
+            canRunDangerous={user.level === "SUPERADMIN"}
+          />
+        ) : activeCategory === "trade_center" ? (
+          <TradePanel
             apiUrl={apiUrl}
             canRunDangerous={user.level === "SUPERADMIN"}
           />
