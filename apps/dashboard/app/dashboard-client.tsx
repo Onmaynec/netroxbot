@@ -560,7 +560,10 @@ export default function DashboardClient({ apiUrl }: DashboardProps) {
         {message && <div className="notice">{message}</div>}
 
         {activeCategory === "economy_center" ? (
-          <EconomyPanel apiUrl={apiUrl} />
+          <EconomyPanel
+            apiUrl={apiUrl}
+            canRunDangerous={user.level === "SUPERADMIN"}
+          />
         ) : activeCategory === "logs_center" ? (
           <EventsPanel apiUrl={apiUrl} />
         ) : activeCategory === "moderation_center" ? (

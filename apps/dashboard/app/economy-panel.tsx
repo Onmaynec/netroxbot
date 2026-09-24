@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 type EconomyPanelProps = {
   apiUrl: string;
+  canRunDangerous: boolean;
 };
 
 type Overview = {
@@ -79,6 +80,21 @@ type EconomyTransaction = {
   createdAt: string;
 };
 
+type EconomySalary = {
+  id: string;
+  roleId: string;
+  amount: string;
+  intervalMinutes: number;
+  enabled: boolean;
+};
+
+type DiscordRole = {
+  id: string;
+  name: string;
+  color: number;
+  managed: boolean;
+};
+
 type NewItemForm = {
   sku: string;
   name: string;
@@ -149,16 +165,26 @@ function date(value: string) {
   return new Date(value).toLocaleString("ru-RU");
 }
 
-export default function EconomyPanel({ apiUrl }: EconomyPanelProps) {
+export default function EconomyPanel({
+  apiUrl,
+  canRunDangerous
+}: EconomyPanelProps) {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [items, setItems] = useState<EconomyItem[]>([]);
   const [loans, setLoans] = useState<EconomyLoan[]>([]);
   const [seasons, setSeasons] = useState<EconomySeason[]>([]);
   const [transactions, setTransactions] = useState<EconomyTransaction[]>([]);
+  const [salaries, setSalaries] = useState<EconomySalary[]>([]);
+  const [roles, setRoles] = useState<DiscordRole[]>([]);
+  const [salaryRoleId, setSalaryRoleId] = useState("");
+  const [salaryAmount, setSalaryAmount] = useState("100");
+  const [salaryIntervalHours, setSalaryIntervalHours] = useState("24");
   const [form, setForm] = useState<NewItemForm>(EMPTY_ITEM);
   const [seasonName, setSeasonName] = useState("");
   const [seasonReset, setSeasonReset] = useState(false);
-  const [tab, setTab] = useState<"overview" | "shop" | "loans" | "seasons">("overview");
+  const [tab, setTab] = useState<
+    "overview" | "shop" | "loans" | "salaries" | "seasons"
+  >("overview");
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -166,35 +192,52 @@ export default function EconomyPanel({ apiUrl }: EconomyPanelProps) {
     setLoading(true);
 
     try {
-      const [overviewData, itemData, loanData, seasonData, transactionData] =
-        await Promise.all([
-          apiFetch<{ ok: true; overview: Overview }>(
-            apiUrl,
-            "/api/v1/economy/overview"
-          ),
-          apiFetch<{ ok: true; items: EconomyItem[] }>(
-            apiUrl,
-            "/api/v1/economy/items"
-          ),
-          apiFetch<{ ok: true; loans: EconomyLoan[] }>(
-            apiUrl,
-            "/api/v1/economy/loans"
-          ),
-          apiFetch<{ ok: true; seasons: EconomySeason[] }>(
-            apiUrl,
-            "/api/v1/economy/seasons"
-          ),
-          apiFetch<{ ok: true; transactions: EconomyTransaction[] }>(
-            apiUrl,
-            "/api/v1/economy/transactions?take=30"
-          )
-        ]);
+      const [
+        overviewData,
+        itemData,
+        loanData,
+        seasonData,
+        transactionData,
+        salaryData,
+        resourceData
+      ] = await Promise.all([
+        apiFetch<{ ok: true; overview: Overview }>(
+          apiUrl,
+          "/api/v1/economy/overview"
+        ),
+        apiFetch<{ ok: true; items: EconomyItem[] }>(
+          apiUrl,
+          "/api/v1/economy/items"
+        ),
+        apiFetch<{ ok: true; loans: EconomyLoan[] }>(
+          apiUrl,
+          "/api/v1/economy/loans"
+        ),
+        apiFetch<{ ok: true; seasons: EconomySeason[] }>(
+          apiUrl,
+          "/api/v1/economy/seasons"
+        ),
+        apiFetch<{ ok: true; transactions: EconomyTransaction[] }>(
+          apiUrl,
+          "/api/v1/economy/transactions?take=30"
+        ),
+        apiFetch<{ ok: true; salaries: EconomySalary[] }>(
+          apiUrl,
+          "/api/v1/economy/salaries"
+        ),
+        apiFetch<{ ok: true; roles: DiscordRole[] }>(
+          apiUrl,
+          "/api/v1/discord/resources"
+        )
+      ]);
 
       setOverview(overviewData.overview);
       setItems(itemData.items);
       setLoans(loanData.loans);
       setSeasons(seasonData.seasons);
       setTransactions(transactionData.transactions);
+      setSalaries(salaryData.salaries);
+      setRoles(resourceData.roles.filter((role) => !role.managed));
     } catch (error) {
       setMessage(
         error instanceof Error
@@ -270,6 +313,111 @@ export default function EconomyPanel({ apiUrl }: EconomyPanelProps) {
         error instanceof Error
           ? error.message
           : "Не удалось изменить предмет."
+      );
+    }
+  }
+
+  async function saveSalary() {
+    if (!salaryRoleId) {
+      setMessage("Выбери Discord-роль.");
+      return;
+    }
+
+    const amount = salaryAmount.trim();
+    const intervalHours = Number(salaryIntervalHours);
+
+    if (!/^\d+$/.test(amount) || BigInt(amount) <= 0n) {
+      setMessage("Сумма зарплаты должна быть больше нуля.");
+      return;
+    }
+
+    if (!Number.isInteger(intervalHours) || intervalHours < 1) {
+      setMessage("Интервал зарплаты должен быть не меньше одного часа.");
+      return;
+    }
+
+    setMessage(null);
+
+    try {
+      await apiFetch(apiUrl, "/api/v1/economy/salaries", {
+        method: "POST",
+        body: JSON.stringify({
+          roleId: salaryRoleId,
+          amount,
+          intervalMinutes: intervalHours * 60
+        })
+      });
+
+      setMessage("Зарплата для роли сохранена.");
+      await load();
+      setTab("salaries");
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Не удалось сохранить зарплату."
+      );
+    }
+  }
+
+  async function disableSalary(roleId: string) {
+    setMessage(null);
+
+    try {
+      await apiFetch(
+        apiUrl,
+        "/api/v1/economy/salaries/" + roleId,
+        { method: "DELETE" }
+      );
+
+      setMessage("Зарплата для роли отключена.");
+      await load();
+      setTab("salaries");
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Не удалось отключить зарплату."
+      );
+    }
+  }
+
+  async function runWealthTax() {
+    if (
+      !window.confirm(
+        "Применить текущий налог на состояние ко всем подходящим аккаунтам? Это массовое списание NEC."
+      )
+    ) {
+      return;
+    }
+
+    setMessage(null);
+
+    try {
+      const response = await apiFetch<{
+        ok: true;
+        result: {
+          affectedAccounts: number;
+          collected: string;
+        };
+      }>(apiUrl, "/api/v1/economy/tax-run", {
+        method: "POST",
+        body: JSON.stringify({ confirm: true })
+      });
+
+      setMessage(
+        "Налог применён к " +
+          response.result.affectedAccounts +
+          " аккаунтам. Собрано " +
+          nec(response.result.collected) +
+          "."
+      );
+      await load();
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Не удалось применить налог."
       );
     }
   }
@@ -369,6 +517,13 @@ export default function EconomyPanel({ apiUrl }: EconomyPanelProps) {
           Кредиты
         </button>
         <button
+          className={tab === "salaries" ? "ghostButton activeTab" : "ghostButton"}
+          onClick={() => setTab("salaries")}
+          type="button"
+        >
+          Зарплаты
+        </button>
+        <button
           className={tab === "seasons" ? "ghostButton activeTab" : "ghostButton"}
           onClick={() => setTab("seasons")}
           type="button"
@@ -422,6 +577,27 @@ export default function EconomyPanel({ apiUrl }: EconomyPanelProps) {
               </small>
             </article>
           </div>
+
+          {canRunDangerous && (
+            <section className="panel economyBlock">
+              <div className="panelHeader">
+                <div>
+                  <h2>Антиинфляция</h2>
+                  <p>
+                    Налог берёт процент и порог из настроек экономики. Массовое
+                    списание доступно только владельцу и требует подтверждения.
+                  </p>
+                </div>
+                <button
+                  className="dangerButton"
+                  onClick={() => void runWealthTax()}
+                  type="button"
+                >
+                  Применить налог
+                </button>
+              </div>
+            </section>
+          )}
 
           <section className="panel economyBlock">
             <div className="panelHeader">
@@ -671,6 +847,102 @@ export default function EconomyPanel({ apiUrl }: EconomyPanelProps) {
             )}
           </div>
         </section>
+      )}
+
+      {tab === "salaries" && (
+        <div className="economyColumns">
+          <section className="panel">
+            <div className="panelHeader">
+              <div>
+                <h2>Настроить зарплату</h2>
+                <p>Участник получает выплату командой /salary после кулдауна.</p>
+              </div>
+            </div>
+
+            <div className="economyForm">
+              <select
+                className="fieldInput"
+                value={salaryRoleId}
+                onChange={(event) => setSalaryRoleId(event.target.value)}
+              >
+                <option value="">Выбрать роль</option>
+                {roles.map((role) => (
+                  <option key={role.id} value={role.id}>
+                    {role.name}
+                  </option>
+                ))}
+              </select>
+              <input
+                className="fieldInput"
+                inputMode="numeric"
+                placeholder="Сумма NEC"
+                value={salaryAmount}
+                onChange={(event) => setSalaryAmount(event.target.value)}
+              />
+              <input
+                className="fieldInput"
+                inputMode="numeric"
+                placeholder="Интервал в часах"
+                value={salaryIntervalHours}
+                onChange={(event) =>
+                  setSalaryIntervalHours(event.target.value)
+                }
+              />
+              <button
+                className="primaryButton"
+                onClick={() => void saveSalary()}
+                type="button"
+              >
+                Сохранить зарплату
+              </button>
+            </div>
+          </section>
+
+          <section className="panel">
+            <div className="panelHeader">
+              <div>
+                <h2>Зарплаты по ролям</h2>
+                <p>Отключённые записи остаются в истории.</p>
+              </div>
+            </div>
+
+            <div className="economyItemList">
+              {salaries.length === 0 ? (
+                <p className="empty">Зарплаты ещё не настроены.</p>
+              ) : (
+                salaries.map((salary) => {
+                  const role =
+                    roles.find((entry) => entry.id === salary.roleId);
+                  const hours = salary.intervalMinutes / 60;
+
+                  return (
+                    <div className="economyItemRow" key={salary.id}>
+                      <div>
+                        <strong>{role?.name ?? salary.roleId}</strong>
+                        <span>
+                          {nec(salary.amount)} • каждые{" "}
+                          {hours.toLocaleString("ru-RU")} ч.
+                          {!salary.enabled ? " • отключена" : ""}
+                        </span>
+                      </div>
+                      {salary.enabled && (
+                        <button
+                          className="dangerButton"
+                          onClick={() =>
+                            void disableSalary(salary.roleId)
+                          }
+                          type="button"
+                        >
+                          Отключить
+                        </button>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </section>
+        </div>
       )}
 
       {tab === "seasons" && (
