@@ -489,27 +489,32 @@ export async function handleAutomodMessage(
     return;
   }
 
-  const exemptRoleId = stringSetting(
-    config.settings,
-    "exemptRoleId"
-  );
+  const exemptRoleIds = [
+    "exemptRoleId",
+    "exemptRoleId2",
+    "exemptRoleId3"
+  ]
+    .map((key) => stringSetting(config.settings, key))
+    .filter((value): value is string => Boolean(value));
 
   if (
-    exemptRoleId &&
-    message.member?.roles.cache.has(exemptRoleId)
+    message.member &&
+    exemptRoleIds.some((roleId) =>
+      message.member!.roles.cache.has(roleId)
+    )
   ) {
     return;
   }
 
-  const exemptChannelId = stringSetting(
-    config.settings,
-    "exemptChannelId"
-  );
+  const exemptChannelIds = [
+    "exemptChannelId",
+    "exemptChannelId2",
+    "exemptChannelId3"
+  ]
+    .map((key) => stringSetting(config.settings, key))
+    .filter((value): value is string => Boolean(value));
 
-  if (
-    exemptChannelId &&
-    message.channelId === exemptChannelId
-  ) {
+  if (exemptChannelIds.includes(message.channelId)) {
     return;
   }
 
