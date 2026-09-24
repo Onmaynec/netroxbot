@@ -150,11 +150,11 @@ export async function createMarketplaceListing(input: {
   });
 }
 
-export function listMarketplaceListings(
+export async function listMarketplaceListings(
   guildId: string,
   take = 50
 ) {
-  return prisma.economyMarketplaceListing.findMany({
+  const listings = await prisma.economyMarketplaceListing.findMany({
     where: {
       guildId,
       status: "ACTIVE",
@@ -165,6 +165,33 @@ export function listMarketplaceListings(
     },
     orderBy: { createdAt: "desc" },
     take: Math.max(1, Math.min(take, 100))
+  });
+
+  const instanceIds = listings.map(
+    (listing) => listing.itemInstanceId
+  );
+  const instances =
+    instanceIds.length === 0
+      ? []
+      : await prisma.economyItemInstance.findMany({
+          where: {
+            id: { in: instanceIds },
+            guildId
+          },
+          include: { item: true }
+        });
+  const byId = new Map(
+    instances.map((instance) => [instance.id, instance])
+  );
+
+  return listings.map((listing) => {
+    const instance = byId.get(listing.itemInstanceId);
+
+    return {
+      ...listing,
+      serialNumber: instance?.serialNumber ?? null,
+      item: instance?.item ?? null
+    };
   });
 }
 
