@@ -41,6 +41,12 @@ export const MODULE_SETTING_FIELDS: Partial<
       kind: "channel"
     },
     {
+      key: "muteRoleId",
+      label: "Mute-роль",
+      description: "Роль для отдельной команды /mute.",
+      kind: "role"
+    },
+    {
       key: "dmOnAction",
       label: "ЛС при наказании",
       description: "Отправлять пользователю причину и данные наказания.",
@@ -67,6 +73,15 @@ export const MODULE_SETTING_FIELDS: Partial<
         { label: "Кик", value: "kick" },
         { label: "Бан", value: "ban" }
       ]
+    },
+    {
+      key: "warnTimeoutMinutes",
+      label: "Таймаут за лимит warn",
+      description: "Длительность автоматического таймаута после лимита предупреждений.",
+      kind: "number",
+      defaultValue: 60,
+      min: 1,
+      max: 40320
     }
   ],
   automod: [
@@ -79,8 +94,14 @@ export const MODULE_SETTING_FIELDS: Partial<
     {
       key: "exemptRoleId",
       label: "Роль-исключение",
-      description: "Роль, на которую автомодерация не действует.",
+      description: "Основная роль, на которую автомодерация не действует.",
       kind: "role"
+    },
+    {
+      key: "exemptChannelId",
+      label: "Канал-исключение",
+      description: "Основной канал, в котором автомодерация не действует.",
+      kind: "channel"
     },
     {
       key: "antiSpam",
@@ -90,11 +111,32 @@ export const MODULE_SETTING_FIELDS: Partial<
       defaultValue: true
     },
     {
+      key: "antiFlood",
+      label: "Антифлуд",
+      description: "Ограничивать повторяющиеся сообщения и символы.",
+      kind: "boolean",
+      defaultValue: true
+    },
+    {
       key: "antiCaps",
       label: "Антикапс",
       description: "Фильтровать чрезмерное использование заглавных букв.",
       kind: "boolean",
       defaultValue: true
+    },
+    {
+      key: "antiProfanity",
+      label: "Антимат",
+      description: "Фильтровать запрещённую лексику по встроенному и пользовательскому словарю.",
+      kind: "boolean",
+      defaultValue: true
+    },
+    {
+      key: "customBlockedWords",
+      label: "Дополнительные запрещённые слова",
+      description: "Слова или фразы через запятую.",
+      kind: "text",
+      defaultValue: ""
     },
     {
       key: "antiLinks",
@@ -109,6 +151,49 @@ export const MODULE_SETTING_FIELDS: Partial<
       description: "Фильтровать приглашения на другие Discord-серверы.",
       kind: "boolean",
       defaultValue: true
+    },
+    {
+      key: "antiMassMentions",
+      label: "Массовые упоминания",
+      description: "Останавливать сообщения с чрезмерным количеством упоминаний.",
+      kind: "boolean",
+      defaultValue: true
+    },
+    {
+      key: "maxMentions",
+      label: "Лимит упоминаний",
+      description: "Сколько упоминаний допускается в одном сообщении.",
+      kind: "number",
+      defaultValue: 6,
+      min: 1,
+      max: 50
+    },
+    {
+      key: "spamWindowSeconds",
+      label: "Окно антиспама",
+      description: "Период, за который считается количество сообщений.",
+      kind: "number",
+      defaultValue: 8,
+      min: 2,
+      max: 60
+    },
+    {
+      key: "spamMessageLimit",
+      label: "Лимит сообщений",
+      description: "Сколько сообщений можно отправить в окно антиспама.",
+      kind: "number",
+      defaultValue: 6,
+      min: 2,
+      max: 30
+    },
+    {
+      key: "capsPercent",
+      label: "Порог капса",
+      description: "Процент заглавных букв, после которого срабатывает антикапс.",
+      kind: "number",
+      defaultValue: 75,
+      min: 50,
+      max: 100
     }
   ],
   logs: [
