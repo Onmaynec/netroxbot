@@ -78,8 +78,8 @@ SESSION_SECRET=
 
 - `DISCORD_GUILD_ID` — ID сервера Mothers Fantastic;
 - `SUPERADMIN_DISCORD_ID` — Discord ID владельца NetroxBot;
-- `DISCORD_OAUTH_CLIENT_ID` и `DISCORD_OAUTH_CLIENT_SECRET` берутся из того же Discord-приложения;
-- `SESSION_SECRET` должен быть длинной случайной строкой, минимум 32 символа;
+- `DISCORD_OAUTH_CLIENT_ID` и `DISCORD_OAUTH_CLIENT_SECRET` берутся из того же Discord-приложения; если они пока не заполнены, API и бот всё равно запустятся, но вход в веб-панель через Discord будет временно отключён;
+- `SESSION_SECRET` должен быть длинной случайной строкой, минимум 32 символа; если оставить его пустым, NetroxBot создаст безопасный временный ключ на текущий запуск, поэтому после перезапуска веб-сессии сбросятся;
 - `PUBLIC_APP_URL` — адрес веб-панели, который открывается в браузере;
 - `PUBLIC_API_URL` — адрес API, доступный браузеру пользователя;
 - пароли PostgreSQL и Lavalink в `.env.example` обязательно замени перед постоянным запуском.

@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { randomBytes } from "node:crypto";
 import cors from "@fastify/cors";
 import Fastify from "fastify";
 import { Redis } from "ioredis";
@@ -11,19 +12,63 @@ import { registerModerationRoutes } from "./moderation.js";
 import { registerEventsRoutes } from "./events.js";
 import { registerEconomyRoutes } from "./economy.js";
 
+const emptyToUndefined = (value: unknown) =>
+  typeof value === "string" && value.trim() === "" ? undefined : value;
+
+const optionalText = z.preprocess(
+  emptyToUndefined,
+  z.string().min(1).optional()
+);
+
+const optionalUrl = z.preprocess(
+  emptyToUndefined,
+  z.string().url().optional()
+);
+
+const optionalSessionSecret = z.preprocess(
+  emptyToUndefined,
+  z.string().min(32).optional()
+);
+
 const env = z.object({
   API_PORT: z.coerce.number().default(3001),
   REDIS_URL: z.string().url(),
   DISCORD_GUILD_ID: z.string().min(1),
   DISCORD_TOKEN: z.string().min(1),
-  DISCORD_OAUTH_CLIENT_ID: z.string().min(1),
-  DISCORD_OAUTH_CLIENT_SECRET: z.string().min(1),
-  DISCORD_OAUTH_REDIRECT_URI: z.string().url(),
+  DISCORD_CLIENT_ID: optionalText,
+  DISCORD_OAUTH_CLIENT_ID: optionalText,
+  DISCORD_OAUTH_CLIENT_SECRET: optionalText,
+  DISCORD_OAUTH_REDIRECT_URI: optionalUrl,
+  PUBLIC_API_URL: optionalUrl,
   PUBLIC_APP_URL: z.string().url(),
-  SESSION_SECRET: z.string().min(32)
+  SESSION_SECRET: optionalSessionSecret
 }).parse(process.env);
 
 const app = Fastify({ logger: true });
+
+const oauthClientId =
+  env.DISCORD_OAUTH_CLIENT_ID ?? env.DISCORD_CLIENT_ID ?? null;
+const oauthClientSecret = env.DISCORD_OAUTH_CLIENT_SECRET ?? null;
+const publicApiUrl =
+  env.PUBLIC_API_URL ?? `http://localhost:${env.API_PORT}`;
+const oauthRedirectUri =
+  env.DISCORD_OAUTH_REDIRECT_URI ??
+  `${publicApiUrl.replace(/\/$/, "")}/auth/discord/callback`;
+const sessionSecret =
+  env.SESSION_SECRET ?? randomBytes(48).toString("base64url");
+const oauthConfigured = Boolean(oauthClientId && oauthClientSecret);
+
+if (!oauthConfigured) {
+  app.log.warn(
+    "Discord OAuth не настроен: API и бот продолжат работу, но вход в веб-панель будет недоступен."
+  );
+}
+
+if (!env.SESSION_SECRET) {
+  app.log.warn(
+    "SESSION_SECRET не задан: создан временный безопасный ключ. После перезапуска активные веб-сессии будут сброшены."
+  );
+}
 
 const redis = new Redis(env.REDIS_URL, {
   connectTimeout: 1500,
@@ -42,11 +87,11 @@ await app.register(cors, {
 });
 
 await registerAuthRoutes(app, redis, {
-  clientId: env.DISCORD_OAUTH_CLIENT_ID,
-  clientSecret: env.DISCORD_OAUTH_CLIENT_SECRET,
-  redirectUri: env.DISCORD_OAUTH_REDIRECT_URI,
+  clientId: oauthClientId,
+  clientSecret: oauthClientSecret,
+  redirectUri: oauthRedirectUri,
   publicAppUrl: env.PUBLIC_APP_URL,
-  sessionSecret: env.SESSION_SECRET,
+  sessionSecret,
   guildId: env.DISCORD_GUILD_ID
 });
 
@@ -112,6 +157,9 @@ app.get("/api/v1/meta", async () => ({
     name: "NetCoin",
     short: "NEC",
     emoji: "🪙"
+  },
+  dashboardAuth: {
+    discordOAuthConfigured: oauthConfigured
   }
 }));
 
