@@ -24,8 +24,8 @@ export type ApiSession = {
 };
 
 export type AuthConfig = {
-  clientId: string;
-  clientSecret: string;
+  clientId: string | null;
+  clientSecret: string | null;
   redirectUri: string;
   publicAppUrl: string;
   sessionSecret: string;
@@ -128,111 +128,136 @@ export async function registerAuthRoutes(
     secret: config.sessionSecret
   });
 
-  await app.register(oauthPlugin, {
-    name: "discordOAuth2",
-    scope: ["identify"],
-    credentials: {
-      client: {
-        id: config.clientId,
-        secret: config.clientSecret
+  const oauthConfigured = Boolean(config.clientId && config.clientSecret);
+
+  if (oauthConfigured) {
+    const clientId = config.clientId as string;
+    const clientSecret = config.clientSecret as string;
+
+    await app.register(oauthPlugin, {
+      name: "discordOAuth2",
+      scope: ["identify"],
+      credentials: {
+        client: {
+          id: clientId,
+          secret: clientSecret
+        },
+        auth: {
+          authorizeHost: "https://discord.com",
+          authorizePath: "/oauth2/authorize",
+          tokenHost: "https://discord.com",
+          tokenPath: "/api/v10/oauth2/token"
+        }
       },
-      auth: {
-        authorizeHost: "https://discord.com",
-        authorizePath: "/oauth2/authorize",
-        tokenHost: "https://discord.com",
-        tokenPath: "/api/v10/oauth2/token"
-      }
-    },
-    startRedirectPath: "/auth/discord",
-    callbackUri: config.redirectUri,
-    cookie: {
-      secure: secureCookie,
-      sameSite: "lax",
-      httpOnly: true
-    }
-  });
-
-  app.get("/auth/discord/callback", async function (request, reply) {
-    try {
-      const { token } =
-        await this.discordOAuth2.getAccessTokenFromAuthorizationCodeFlow(
-          request,
-          reply
-        );
-
-      const userResponse = await fetch(
-        "https://discord.com/api/v10/users/@me",
-        {
-          headers: {
-            Authorization: `Bearer ${token.access_token}`
-          }
-        }
-      );
-
-      if (!userResponse.ok) {
-        return reply.redirect(
-          `${config.publicAppUrl}/?auth=discord_error`
-        );
-      }
-
-      const user = discordUserSchema.parse(await userResponse.json());
-      const admin = await prisma.adminUser.findUnique({
-        where: { discordId: user.id }
-      });
-
-      if (!admin || admin.revokedAt) {
-        app.log.warn(
-          { discordId: user.id },
-          "Пользователь без доступа попытался войти в панель"
-        );
-
-        return reply.redirect(`${config.publicAppUrl}/?auth=denied`);
-      }
-
-      const sessionToken = randomBytes(48).toString("base64url");
-      const session: ApiSession = {
-        discordId: user.id,
-        username: user.username,
-        globalName: user.global_name ?? null,
-        avatar: user.avatar ?? null,
-        level: admin.level
-      };
-
-      await redis.set(
-        `session:${sessionToken}`,
-        JSON.stringify(session),
-        "EX",
-        SESSION_TTL_SECONDS
-      );
-
-      await prisma.auditLog.create({
-        data: {
-          guildId: config.guildId,
-          actorId: user.id,
-          action: "dashboard.login",
-          targetType: "admin",
-          targetId: user.id,
-          payload: {
-            source: "discord_oauth"
-          }
-        }
-      });
-
-      reply.setCookie(SESSION_COOKIE, sessionToken, {
-        signed: true,
-        httpOnly: true,
-        sameSite: "lax",
+      startRedirectPath: "/auth/discord",
+      callbackUri: config.redirectUri,
+      cookie: {
         secure: secureCookie,
-        path: "/",
-        maxAge: SESSION_TTL_SECONDS
-      });
+        sameSite: "lax",
+        httpOnly: true
+      }
+    });
+  
+    app.get("/auth/discord/callback", async function (request, reply) {
+      try {
+        const { token } =
+          await this.discordOAuth2.getAccessTokenFromAuthorizationCodeFlow(
+            request,
+            reply
+          );
+  
+        const userResponse = await fetch(
+          "https://discord.com/api/v10/users/@me",
+          {
+            headers: {
+              Authorization: `Bearer ${token.access_token}`
+            }
+          }
+        );
+  
+        if (!userResponse.ok) {
+          return reply.redirect(
+            `${config.publicAppUrl}/?auth=discord_error`
+          );
+        }
+  
+        const user = discordUserSchema.parse(await userResponse.json());
+        const admin = await prisma.adminUser.findUnique({
+          where: { discordId: user.id }
+        });
+  
+        if (!admin || admin.revokedAt) {
+          app.log.warn(
+            { discordId: user.id },
+            "Пользователь без доступа попытался войти в панель"
+          );
+  
+          return reply.redirect(`${config.publicAppUrl}/?auth=denied`);
+        }
+  
+        const sessionToken = randomBytes(48).toString("base64url");
+        const session: ApiSession = {
+          discordId: user.id,
+          username: user.username,
+          globalName: user.global_name ?? null,
+          avatar: user.avatar ?? null,
+          level: admin.level
+        };
+  
+        await redis.set(
+          `session:${sessionToken}`,
+          JSON.stringify(session),
+          "EX",
+          SESSION_TTL_SECONDS
+        );
+  
+        await prisma.auditLog.create({
+          data: {
+            guildId: config.guildId,
+            actorId: user.id,
+            action: "dashboard.login",
+            targetType: "admin",
+            targetId: user.id,
+            payload: {
+              source: "discord_oauth"
+            }
+          }
+        });
+  
+        reply.setCookie(SESSION_COOKIE, sessionToken, {
+          signed: true,
+          httpOnly: true,
+          sameSite: "lax",
+          secure: secureCookie,
+          path: "/",
+          maxAge: SESSION_TTL_SECONDS
+        });
+  
+        return reply.redirect(config.publicAppUrl);
+      } catch (error) {
+        app.log.warn({ error }, "Не удалось завершить Discord OAuth");
+        return reply.redirect(`${config.publicAppUrl}/?auth=discord_error`);
+      }
+    });
+  } else {
+    app.get("/auth/discord", async (_request, reply) =>
+      reply.code(503).send({
+        ok: false,
+        error: "OAUTH_NOT_CONFIGURED",
+        message:
+          "Discord OAuth не настроен. Заполни DISCORD_OAUTH_CLIENT_ID и DISCORD_OAUTH_CLIENT_SECRET."
+      })
+    );
 
-      return reply.redirect(config.publicAppUrl);
-    } catch (error) {
-      app.log.warn({ error }, "Не удалось завершить Discord OAuth");
-      return reply.redirect(`${config.publicAppUrl}/?auth=discord_error`);
-    }
-  });
+    app.get("/auth/discord/callback", async (_request, reply) =>
+      reply.code(503).send({
+        ok: false,
+        error: "OAUTH_NOT_CONFIGURED",
+        message:
+          "Discord OAuth не настроен. Заполни DISCORD_OAUTH_CLIENT_ID и DISCORD_OAUTH_CLIENT_SECRET."
+      })
+    );
+  }
 
   app.get("/api/v1/auth/me", async (request, reply) => {
     const session = await requireSession(request, reply, redis);
