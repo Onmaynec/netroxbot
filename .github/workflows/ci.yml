@@ -119,7 +119,7 @@ jobs:
           sed -i 's/^DISCORD_TOKEN=.*/DISCORD_TOKEN=ci_dummy_token/' .env
           sed -i 's/^DISCORD_CLIENT_ID=.*/DISCORD_CLIENT_ID=100000000000000003/' .env
           sed -i 's/^DISCORD_GUILD_ID=.*/DISCORD_GUILD_ID=100000000000000001/' .env
-          sed -i 's/^SUPERADMIN_DISCORD_ID=.*/SUPERADMIN_DISCORD_ID=100000000000000002/' .env
+          sed -i 's/^SUPERADMIN_DISCORD_ID=.*/SUPERADMIN_DISCORD_ID=/' .env
           sed -i 's/^DISCORD_OAUTH_CLIENT_ID=.*/DISCORD_OAUTH_CLIENT_ID=/' .env
           sed -i 's/^DISCORD_OAUTH_CLIENT_SECRET=.*/DISCORD_OAUTH_CLIENT_SECRET=/' .env
           sed -i 's/^SESSION_SECRET=.*/SESSION_SECRET=/' .env
