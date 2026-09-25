@@ -50,7 +50,7 @@ const env = z.object({
   DISCORD_TOKEN: z.string().min(1),
   DISCORD_CLIENT_ID: z.string().min(1),
   DISCORD_GUILD_ID: z.string().min(1),
-  SUPERADMIN_DISCORD_ID: z.string().min(1),
+  SUPERADMIN_DISCORD_ID: z.string().trim().optional().transform((value) => value || undefined),
   LAVALINK_HOST: z.string().min(1).default("lavalink"),
   LAVALINK_PORT: z.coerce.number().int().positive().default(2333),
   LAVALINK_PASSWORD: z.string().min(1)
