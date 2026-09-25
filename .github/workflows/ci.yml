@@ -114,6 +114,38 @@ jobs:
           docker compose --profile backup -f docker-compose.yml config >/dev/null
           docker compose -f docker-compose.prod.yml config >/dev/null
 
+      - name: Проверить реальный запуск API в Docker
+        run: |
+          sed -i 's/^DISCORD_TOKEN=.*/DISCORD_TOKEN=ci_dummy_token/' .env
+          sed -i 's/^DISCORD_CLIENT_ID=.*/DISCORD_CLIENT_ID=100000000000000003/' .env
+          sed -i 's/^DISCORD_GUILD_ID=.*/DISCORD_GUILD_ID=100000000000000001/' .env
+          sed -i 's/^SUPERADMIN_DISCORD_ID=.*/SUPERADMIN_DISCORD_ID=100000000000000002/' .env
+          sed -i 's/^DISCORD_OAUTH_CLIENT_ID=.*/DISCORD_OAUTH_CLIENT_ID=/' .env
+          sed -i 's/^DISCORD_OAUTH_CLIENT_SECRET=.*/DISCORD_OAUTH_CLIENT_SECRET=/' .env
+          sed -i 's/^SESSION_SECRET=.*/SESSION_SECRET=/' .env
+
+          docker compose up -d --build api
+
+          ready=0
+          for attempt in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:3001/ready >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 3
+          done
+
+          if [ "$ready" -ne 1 ]; then
+            docker compose ps
+            docker compose logs api postgres redis
+            exit 1
+          fi
+
+          curl -fsS http://127.0.0.1:3001/health
+          curl -fsS http://127.0.0.1:3001/ready
+          docker compose logs api
+          docker compose down -v
+
       - name: Проверить запуск Lavalink и плагинов
         run: |
           docker compose up -d lavalink
