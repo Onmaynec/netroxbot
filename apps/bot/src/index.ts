@@ -11,9 +11,7 @@ import {
   MessageFlags,
   ModalBuilder,
   Partials,
-  REST,
   RoleSelectMenuBuilder,
-  Routes,
   SlashCommandBuilder,
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
@@ -48,7 +46,7 @@ import { handleEconomyMessage, startEconomyVoiceRewards } from "./economy-activi
 
 const env = z.object({
   DISCORD_TOKEN: z.string().min(1),
-  DISCORD_CLIENT_ID: z.string().min(1),
+  DISCORD_CLIENT_ID: z.string().trim().optional().transform((value) => value || undefined),
   DISCORD_GUILD_ID: z.string().min(1),
   SUPERADMIN_DISCORD_ID: z.string().trim().optional().transform((value) => value || undefined),
   LAVALINK_HOST: z.string().min(1).default("lavalink"),
@@ -646,23 +644,58 @@ async function denySettingsAccess(interaction: Interaction): Promise<void> {
 }
 
 client.once("ready", async (readyClient) => {
-  const rest = new REST({ version: "10" }).setToken(env.DISCORD_TOKEN);
+  try {
+    const guild = await readyClient.guilds.fetch(env.DISCORD_GUILD_ID);
+    const applicationId =
+      readyClient.application?.id ?? readyClient.user.id;
 
-  await rest.put(
-    Routes.applicationGuildCommands(
-      env.DISCORD_CLIENT_ID,
-      env.DISCORD_GUILD_ID
-    ),
-    { body: commands }
-  );
+    if (
+      env.DISCORD_CLIENT_ID &&
+      env.DISCORD_CLIENT_ID !== applicationId
+    ) {
+      console.warn(
+        `DISCORD_CLIENT_ID=${env.DISCORD_CLIENT_ID} не совпадает с приложением токена (${applicationId}). Для регистрации slash-команд используется авторизованное приложение бота.`
+      );
+    }
 
-  startModerationScheduler(moderationRuntime);
-  startEconomyVoiceRewards(client, economyRuntime);
+    const syncedCommands = await guild.commands.set(commands);
 
-  console.log(`NetroxBot запущен как ${readyClient.user.tag}`);
+    console.log(
+      `Slash-команды NetroxBot синхронизированы: ${syncedCommands.size} шт. • guild=${guild.id} • application=${applicationId}`
+    );
+
+    startModerationScheduler(moderationRuntime);
+    startEconomyVoiceRewards(client, economyRuntime);
+
+    console.log(`NetroxBot запущен как ${readyClient.user.tag}`);
+  } catch (error) {
+    console.error(
+      `Критическая ошибка запуска NetroxBot: не удалось синхронизировать slash-команды для guild=${env.DISCORD_GUILD_ID}.`,
+      error
+    );
+    process.exit(1);
+  }
 });
 
 client.on("messageCreate", async (message) => {
+  if (
+    !message.author.bot &&
+    message.inGuild() &&
+    message.guildId === env.DISCORD_GUILD_ID &&
+    client.user &&
+    message.mentions.has(client.user)
+  ) {
+    const withoutMention = message.content
+      .replace(new RegExp(`<@!?${client.user.id}>`, "g"), "")
+      .trim();
+
+    if (!withoutMention) {
+      await message
+        .reply("NetroxBot работает. Открой список команд через `/` или начни с `/help`.")
+        .catch(() => undefined);
+    }
+  }
+
   try {
     await handleAutomodMessage(message, moderationRuntime);
   } catch (error) {
