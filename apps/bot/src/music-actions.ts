@@ -817,7 +817,7 @@ export async function handleMusicCommand(
       return true;
     }
 
-    if (interaction.commandName === "history") {
+    if (interaction.commandName === "music-history") {
       const history = await listMusicHistory(
         runtime.guildId,
         interaction.user.id,

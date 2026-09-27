@@ -99,7 +99,7 @@ export const musicCommandBuilders = [
         .setDescription("Показать избранные треки")
     ),
   new SlashCommandBuilder()
-    .setName("history")
+    .setName("music-history")
     .setDescription("Показать историю прослушивания"),
   new SlashCommandBuilder()
     .setName("playlist")
