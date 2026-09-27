@@ -43,6 +43,7 @@ import { handleMusicButton, handleMusicCommand } from "./music-actions.js";
 import { economyCommands } from "./economy-commands.js";
 import { handleEconomyInteraction } from "./economy-actions.js";
 import { handleEconomyMessage, startEconomyVoiceRewards } from "./economy-activity.js";
+import { buildHelpView, handleHelpButton } from "./help.js";
 
 const env = z.object({
   DISCORD_TOKEN: z.string().min(1),
@@ -762,40 +763,23 @@ client.on("interactionCreate", async (interaction) => {
       return;
     }
 
+    if (
+      interaction.isButton() &&
+      (await handleHelpButton(
+        interaction,
+        client.user?.displayAvatarURL({ size: 128 })
+      ))
+    ) {
+      return;
+    }
+
     if (interaction.isChatInputCommand()) {
       if (interaction.commandName === "help") {
-        const embed = new EmbedBuilder()
-          .setColor(ACCENT)
-          .setTitle("NetroxBot — помощь")
-          .setDescription(
-            "Главное меню помощи. Разделы будут подключаться по мере готовности модулей."
-          )
-          .addFields(
-            {
-              name: "Модерация",
-              value: "Наказания, автомодерация, апелляции и логи.",
-              inline: true
-            },
-            {
-              name: "Экономика",
-              value: "🪙 NetCoin, банк, предметы, магазин и аукционы.",
-              inline: true
-            },
-            {
-              name: "Музыка",
-              value: "Очередь, плейлисты, управление и 24/7 режим.",
-              inline: true
-            },
-            {
-              name: "Сервер",
-              value: "Тикеты, роли, заявки, события, статистика и другое.",
-              inline: true
-            }
-          )
-          .setFooter({ text: "Mothers Fantastic" });
-
         await interaction.reply({
-          embeds: [embed],
+          ...buildHelpView(
+            "home",
+            client.user?.displayAvatarURL({ size: 128 })
+          ),
           flags: MessageFlags.Ephemeral
         });
         return;

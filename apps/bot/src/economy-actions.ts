@@ -158,31 +158,73 @@ async function canAdminEconomy(
 }
 
 function balanceEmbed(
-  userLabel: string,
-  account: Awaited<ReturnType<typeof getEconomyAccount>>
+  displayName: string,
+  avatarUrl: string,
+  account: Awaited<ReturnType<typeof getEconomyAccount>>,
+  notice?: string
 ) {
+  const total = account.wallet + account.bank;
+  const walletPercent =
+    total > 0n ? Number((account.wallet * 100n) / total) : 0;
+  const bankPercent = total > 0n ? 100 - walletPercent : 0;
+  const segments = 14;
+  const walletSegments =
+    total > 0n ? Math.round((walletPercent / 100) * segments) : 0;
+  const distribution =
+    "█".repeat(walletSegments) +
+    "░".repeat(Math.max(0, segments - walletSegments));
+
   return new EmbedBuilder()
     .setColor(ACCENT)
-    .setTitle("🪙 Баланс NetCoin")
-    .setDescription(userLabel)
+    .setAuthor({
+      name: displayName + " • NetCoin",
+      iconURL: avatarUrl
+    })
+    .setTitle("💳 Финансовый профиль")
+    .setDescription(
+      (notice ? notice + "\n\n" : "") +
+        "**Общий баланс**\n" +
+        "### " +
+        nec(total) +
+        "\n" +
+        "`" +
+        distribution +
+        "`\n" +
+        "👛 **" +
+        walletPercent +
+        "%** в кошельке  •  🏦 **" +
+        bankPercent +
+        "%** в банке"
+    )
     .addFields(
       {
-        name: "Кошелёк",
-        value: nec(account.wallet),
+        name: "👛 Кошелёк",
+        value:
+          "**" +
+          nec(account.wallet) +
+          "**\nСредства, доступные для операций.",
         inline: true
       },
       {
-        name: "Банк",
-        value: nec(account.bank),
+        name: "🏦 Банк",
+        value:
+          "**" +
+          nec(account.bank) +
+          "**\nСредства на банковском счёте.",
         inline: true
       },
       {
-        name: "Всего",
-        value: nec(account.wallet + account.bank),
-        inline: true
+        name: "📊 Состояние",
+        value:
+          total > 0n
+            ? "Кошелёк и банк вместе составляют **" + nec(total) + "**."
+            : "Баланс пока пуст. Получить первые NEC можно через награды экономики.",
+        inline: false
       }
     )
-    .setFooter({ text: "NetCoin • NEC" });
+    .setThumbnail(avatarUrl)
+    .setFooter({ text: "NetCoin • NEC • Mothers Fantastic" })
+    .setTimestamp();
 }
 
 function rarityLabel(rarity: string) {
@@ -304,9 +346,8 @@ async function handleCommand(
       await interaction.reply({
         embeds: [
           balanceEmbed(
-            target.id === interaction.user.id
-              ? "Твой баланс"
-              : "Баланс <@" + target.id + ">",
+            target.globalName ?? target.username,
+            target.displayAvatarURL({ size: 128 }),
             account
           )
         ]
@@ -329,7 +370,14 @@ async function handleCommand(
       });
 
       await interaction.reply({
-        embeds: [balanceEmbed("Операция выполнена", account)],
+        embeds: [
+          balanceEmbed(
+            interaction.user.globalName ?? interaction.user.username,
+            interaction.user.displayAvatarURL({ size: 128 }),
+            account,
+            "✅ Операция с банком выполнена. Баланс обновлён."
+          )
+        ],
         flags: MessageFlags.Ephemeral
       });
       return true;
