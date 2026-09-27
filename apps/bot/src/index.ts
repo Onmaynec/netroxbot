@@ -71,6 +71,31 @@ const commands = [
   ...economyCommands
 ];
 
+function assertUniqueCommandNames(
+  definitions: ReadonlyArray<{ name: string }>
+): void {
+  const seen = new Set<string>();
+  const duplicates = new Set<string>();
+
+  for (const command of definitions) {
+    if (seen.has(command.name)) {
+      duplicates.add(command.name);
+    }
+
+    seen.add(command.name);
+  }
+
+  if (duplicates.size > 0) {
+    throw new Error(
+      `Найдены дублирующиеся slash-команды: ${[...duplicates]
+        .map((name) => `/${name}`)
+        .join(", ")}`
+    );
+  }
+}
+
+assertUniqueCommandNames(commands);
+
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
