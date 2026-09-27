@@ -16,17 +16,17 @@ const SUBCOMMAND_GROUP = 2;
 type HelpPage = "home" | "moderation" | "economy" | "music" | "system";
 
 type HelpOption = {
-  type?: number;
+  type?: number | undefined;
   name: string;
-  description?: string;
-  required?: boolean;
-  options?: HelpOption[];
+  description?: string | undefined;
+  required?: boolean | undefined;
+  options?: HelpOption[] | undefined;
 };
 
 type HelpCommand = {
   name: string;
   description: string;
-  options?: HelpOption[];
+  options?: HelpOption[] | undefined;
 };
 
 const sections: Record<
